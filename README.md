@@ -128,6 +128,7 @@ if __name__ == "__main__":
 | get_build_info     | Get build info               |
 | get_job_info       | Get job info                 |
 | build_job          | Build a job with param       |
+| get_build_logs     | Get build logs               |
 
 
 ## Development & Debugging
