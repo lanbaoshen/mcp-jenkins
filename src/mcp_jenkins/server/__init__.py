@@ -1,9 +1,10 @@
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.types import AnyFunction
 
 from mcp_jenkins.jenkins import JenkinsClient
 
@@ -39,7 +40,18 @@ def client(ctx: Context) -> JenkinsClient:
     return ctx.request_context.lifespan_context.client
 
 
+def enhance_mcp_tool(self) -> Callable[[AnyFunction], AnyFunction]:  # noqa: ANN001
+    def decorator(fn: AnyFunction) -> AnyFunction:
+        alias_name = os.getenv('tool_alias').replace('[fn]', fn.__name__)
+        self.add_tool(fn, name=alias_name)
+        return fn
+
+    return decorator
+
+
 mcp = FastMCP('mcp-jenkins', lifespan=jenkins_lifespan)
+# Register the tool decorator with the FastMCP instance
+mcp.tool = enhance_mcp_tool.__get__(mcp, type(mcp))
 
 
 # Import the job and build modules here to avoid circular imports
