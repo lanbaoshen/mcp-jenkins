@@ -119,18 +119,21 @@ if __name__ == "__main__":
 </details>
 
 ## Available Tools
-| Tool               | Description                  |
-|--------------------|------------------------------|
-| get_all_jobs       | Get all jobs                 |
-| get_job_config     | Get job config               |
-| search_jobs        | Search job by specific field |
-| get_running_builds | Get running builds           |
-| get_build_info     | Get build info               |
-| get_job_info       | Get job info                 |
-| build_job          | Build a job with param       |
-| get_build_logs     | Get build logs               |
-| get_all_nodes      | Get nodes                    |
-| get_node_config    | Get the config of node       |
+| Tool                | Description                  |
+|---------------------|------------------------------|
+| get_all_jobs        | Get all jobs                 |
+| get_job_config      | Get job config               |
+| search_jobs         | Search job by specific field |
+| get_running_builds  | Get running builds           |
+| get_build_info      | Get build info               |
+| get_job_info        | Get job info                 |
+| build_job           | Build a job with param       |
+| get_build_logs      | Get build logs               |
+| get_all_nodes       | Get nodes                    |
+| get_node_config     | Get the config of node       |
+| get_all_queue_items | Get all queue items          |
+| get_queue_item      | Get queue item info          |
+| cancel_queue_item   | Cancel queue item            |
 
 
 ## Development & Debugging
