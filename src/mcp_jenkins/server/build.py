@@ -9,7 +9,7 @@ async def get_running_builds(ctx: Context) -> list[dict]:
     Get all running builds from Jenkins
 
     Returns:
-        list[Build]: A list of all running builds
+        list[dict]: A list of all running builds
     """
     return [build.model_dump(exclude_none=True) for build in client(ctx).build.get_running_builds()]
 
@@ -24,7 +24,7 @@ async def get_build_info(ctx: Context, fullname: str, build_number: int | None =
         build_number: The number of the build, if None, get the last build
 
     Returns:
-        Build: The build info
+        dict: The build info
     """
     if build_number is None:
         build_number = client(ctx).job.get_job_info(fullname).lastBuild.number
