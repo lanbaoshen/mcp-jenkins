@@ -55,4 +55,4 @@ mcp.tool = enhance_mcp_tool.__get__(mcp, type(mcp))
 
 
 # Import the job and build modules here to avoid circular imports
-from mcp_jenkins.server import build, job, node  # noqa: E402, F401
+from mcp_jenkins.server import build, job, node, queue_item  # noqa: E402, F401
