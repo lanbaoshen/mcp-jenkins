@@ -2,9 +2,31 @@ import pytest
 
 from mcp_jenkins.jenkins._job import JenkinsJob
 from mcp_jenkins.models.build import Build
-from mcp_jenkins.models.job import Folder, Job
+from mcp_jenkins.models.job import Folder, Job, MultibranchPipeline
 
 JOBS = [
+    {
+        '_class': 'org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+        'name': 'multibranch_pipeline',
+        'url': 'http://localhost:8080/job/multibranch_pipeline/',
+        'fullname': 'multibranch_pipeline',
+        'jobs': [
+            {
+                '_class': 'org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                'name': 'main',
+                'url': 'http://localhost:8080/job/multibranch_pipeline/job/main/',
+                'fullname': 'multibranch_pipeline/main',
+                'color': 'blue',
+            },
+            {
+                '_class': 'org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                'name': 'develop',
+                'url': 'http://localhost:8080/job/multibranch_pipeline/job/develop/',
+                'fullname': 'multibranch_pipeline/develop',
+                'color': 'red',
+            }
+        ],
+    },
     {
         '_class': 'com.cloudbees.hudson.plugins.folder.Folder',
         'name': 'main_folder',
@@ -104,6 +126,30 @@ FOLDER_INFO = {
     ],
 }
 
+MULTIBRANCH_INFO = {
+    '_class': 'org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+    'fullName': 'multibranch',
+    'name': 'multibranch',
+    'url': 'http://localhost:8080/job/multibranch/',
+    'jobs': [
+        {
+            '_class': 'org.jenkinsci.plugins.workflow.job.WorkflowJob',
+            'name': 'main',
+            'url': 'http://localhost:8080/job/multibranch/job/main/',
+            'color': 'blue',
+        },
+        {
+            '_class': 'org.jenkinsci.plugins.workflow.job.WorkflowJob',
+            'name': 'develop',
+            'url': 'http://localhost:8080/job/multibranch/job/develop/',
+            'color': 'red',
+        },
+    ],
+    'numBranches': 2,
+    'branchNames': ['main', 'develop'],
+    'disabled': False,
+}
+
 
 @pytest.fixture()
 def jenkins_job(mock_jenkins):
@@ -172,9 +218,72 @@ def test_to_model_returns_folder(jenkins_job):
     )
 
 
+def test_to_model_returns_multibranch_pipeline(jenkins_job):
+    job_data = {
+        '_class': 'org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+        'name': 'multibranch1',
+        'url': 'http://localhost:8080/job/multibranch1/',
+        'fullname': 'multibranch1',
+        'jobs': [
+            {
+                '_class': 'org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                'name': 'main',
+                'url': 'http://localhost:8080/job/multibranch1/job/main/',
+                'fullname': 'multibranch1/main',
+                'color': 'blue',
+            }
+        ],
+        'numBranches': 1,
+        'branchNames': ['main'],
+        'disabled': False,
+    }
+    model = jenkins_job._to_model(job_data)
+
+    assert model == MultibranchPipeline(
+        class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+        name='multibranch1',
+        url='http://localhost:8080/job/multibranch1/',
+        fullname='multibranch1',
+        jobs=[
+            Job(
+                class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                name='main',
+                url='http://localhost:8080/job/multibranch1/job/main/',
+                fullname='multibranch1/main',
+                color='blue',
+            )
+        ],
+        numBranches=1,
+        branchNames=['main'],
+        disabled=False,
+    )
+
+
 def test_get_all_jobs(jenkins_job):
     jobs = jenkins_job.get_all_jobs()
     assert jobs == [
+        MultibranchPipeline(
+            class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+            name='multibranch_pipeline',
+            url='http://localhost:8080/job/multibranch_pipeline/',
+            fullname='multibranch_pipeline',
+            jobs=[
+                Job(
+                    class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                    name='main',
+                    url='http://localhost:8080/job/multibranch_pipeline/job/main/',
+                    fullname='multibranch_pipeline/main',
+                    color='blue',
+                ),
+                Job(
+                    class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                    name='develop',
+                    url='http://localhost:8080/job/multibranch_pipeline/job/develop/',
+                    fullname='multibranch_pipeline/develop',
+                    color='red',
+                )
+            ],
+        ),
         Folder(
             class_='com.cloudbees.hudson.plugins.folder.Folder',
             name='main_folder',
@@ -452,6 +561,63 @@ def test_get_job_info_return_folder(jenkins_job):
                 name='job',
                 url='http://localhost:8080/job/folder/job/job/',
                 color='blue',
+            )
+        ],
+    )
+
+
+def test_get_job_info_return_multibranch_pipeline(jenkins_job):
+    jenkins_job._jenkins.get_job_info.return_value = MULTIBRANCH_INFO
+    job_info = jenkins_job.get_job_info('multibranch')
+
+    assert job_info == MultibranchPipeline(
+        class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+        fullName='multibranch',
+        name='multibranch',
+        url='http://localhost:8080/job/multibranch/',
+        jobs=[
+            Job(
+                class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                name='main',
+                url='http://localhost:8080/job/multibranch/job/main/',
+                color='blue',
+            ),
+            Job(
+                class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                name='develop',
+                url='http://localhost:8080/job/multibranch/job/develop/',
+                color='red',
+            ),
+        ],
+        numBranches=2,
+        branchNames=['main', 'develop'],
+        disabled=False,
+    )
+
+
+def test_search_jobs_with_multibranch_pipeline(jenkins_job):
+    jobs = jenkins_job.search_jobs(class_pattern='.*WorkflowMultiBranchProject')
+    
+    assert len(jobs) == 1
+    assert jobs[0] == MultibranchPipeline(
+        class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+        name='multibranch_pipeline',
+        url='http://localhost:8080/job/multibranch_pipeline/',
+        fullname='multibranch_pipeline',
+        jobs=[
+            Job(
+                class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                name='main',
+                url='http://localhost:8080/job/multibranch_pipeline/job/main/',
+                fullname='multibranch_pipeline/main',
+                color='blue',
+            ),
+            Job(
+                class_='org.jenkinsci.plugins.workflow.job.WorkflowJob',
+                name='develop',
+                url='http://localhost:8080/job/multibranch_pipeline/job/develop/',
+                fullname='multibranch_pipeline/develop',
+                color='red',
             )
         ],
     )

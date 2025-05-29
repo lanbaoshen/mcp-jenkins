@@ -2,7 +2,7 @@ import re
 
 from jenkins import Jenkins
 
-from mcp_jenkins.models.job import Folder, Job, JobBase
+from mcp_jenkins.models.job import Folder, Job, JobBase, MultibranchPipeline
 
 
 class JenkinsJob:
@@ -13,6 +13,8 @@ class JenkinsJob:
     def _to_model(job_data: dict) -> JobBase:
         if job_data['_class'].endswith('Folder'):
             return Folder.model_validate(job_data)
+        elif job_data['_class'].endswith('WorkflowMultiBranchProject'):
+            return MultibranchPipeline.model_validate(job_data)
         return Job.model_validate(job_data)
 
     def get_all_jobs(self) -> list[JobBase]:
@@ -45,8 +47,8 @@ class JenkinsJob:
                 continue
             if url_pattern and not url_pattern.match(job.url):
                 continue
-            # Folder do not have attribute color
-            if color_pattern and (isinstance(job, Folder) or not color_pattern.match(job.color)):
+            # Folder and MultibranchPipeline do not have attribute color
+            if color_pattern and (isinstance(job, Folder | MultibranchPipeline) or not color_pattern.match(job.color)):
                 continue
             result.append(job)
 
