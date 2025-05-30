@@ -42,3 +42,6 @@ class JenkinsBuild:
             str: The logs of the build
         """
         return self._jenkins.get_build_console_output(fullname, number)
+
+    def stop_build(self, fullname: str, number: int) -> None:
+        return self._jenkins.stop_build(fullname, number)

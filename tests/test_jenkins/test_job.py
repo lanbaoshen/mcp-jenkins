@@ -24,7 +24,7 @@ JOBS = [
                 'url': 'http://localhost:8080/job/multibranch_pipeline/job/develop/',
                 'fullname': 'multibranch_pipeline/develop',
                 'color': 'red',
-            }
+            },
         ],
     },
     {
@@ -281,7 +281,7 @@ def test_get_all_jobs(jenkins_job):
                     url='http://localhost:8080/job/multibranch_pipeline/job/develop/',
                     fullname='multibranch_pipeline/develop',
                     color='red',
-                )
+                ),
             ],
         ),
         Folder(
@@ -597,7 +597,7 @@ def test_get_job_info_return_multibranch_pipeline(jenkins_job):
 
 def test_search_jobs_with_multibranch_pipeline(jenkins_job):
     jobs = jenkins_job.search_jobs(class_pattern='.*WorkflowMultiBranchProject')
-    
+
     assert len(jobs) == 1
     assert jobs[0] == MultibranchPipeline(
         class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
@@ -618,6 +618,6 @@ def test_search_jobs_with_multibranch_pipeline(jenkins_job):
                 url='http://localhost:8080/job/multibranch_pipeline/job/develop/',
                 fullname='multibranch_pipeline/develop',
                 color='red',
-            )
+            ),
         ],
     )

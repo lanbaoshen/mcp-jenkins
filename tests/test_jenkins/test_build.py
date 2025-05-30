@@ -56,6 +56,7 @@ def jenkins_build(mock_jenkins):
     mock_jenkins.get_running_builds.return_value = RUNNING_BUILDS
     mock_jenkins.get_build_info.return_value = BUILD_INFO
     mock_jenkins.build_job.return_value = 1
+    mock_jenkins.stop_build.return_value = None
     mock_jenkins.get_job_info.return_value = {
         'property': [
             {
@@ -178,3 +179,7 @@ def test_get_build_logs_not_found(jenkins_build):
 
     with pytest.raises(JenkinsException, match='Build not found'):
         jenkins_build.get_build_logs(fullname='folder-one/job-two', number=999999)
+
+
+def test_stop_build(jenkins_build):
+    assert jenkins_build.stop_build(fullname='folder-one/job-two', number=110) is None
