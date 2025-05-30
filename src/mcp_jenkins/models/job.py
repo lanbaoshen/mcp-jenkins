@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,5 +24,16 @@ class Job(JobBase):
     inQueue: bool = None
 
 
+class MultibranchPipeline(JobBase):
+    """Model for Jenkins Multibranch Pipeline jobs"""
+
+    jobs: list[Union['Job', Any]] = None
+    numBranches: int = None
+    branchNames: list[str] = None
+    disabled: bool = None
+    lastBuild: Optional['Build'] = None
+    inQueue: bool = None
+
+
 class Folder(JobBase):
-    jobs: list[Union['Job', 'Folder']]
+    jobs: list[Union['Job', 'Folder', 'MultibranchPipeline']]
