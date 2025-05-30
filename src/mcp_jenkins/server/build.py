@@ -60,3 +60,15 @@ async def get_build_logs(ctx: Context, fullname: str, build_number: str) -> str:
     """
     build_number = int(build_number)
     return client(ctx).build.get_build_logs(fullname, build_number)
+
+
+@mcp.tool()
+async def stop_build(ctx: Context, fullname: str, build_number: int) -> None:
+    """
+    Stop a specific build in Jenkins
+
+    Args:
+        fullname: The fullname of the job
+        build_number: The number of the build to stop
+    """
+    return client(ctx).build.stop_build(fullname, build_number)
