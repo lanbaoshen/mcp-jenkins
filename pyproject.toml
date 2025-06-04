@@ -8,6 +8,7 @@ dependencies = [
     "mcp>=1.6.0",
     "pydantic>=2.11.1",
     "python-jenkins>=1.8.2",
+    "beautifulsoup4>=4.12.2",
 ]
 
 [[project.authors]]
