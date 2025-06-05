@@ -131,6 +131,33 @@ def test_get_build_info(jenkins_build):
     )
 
 
+def test_get_build_sourcecode_success(jenkins_build):
+    # Example HTML with pipeline script in textarea
+    html = """<html><body><textarea name="_.mainScript">pipeline {\n    agent any\n    stages {\n        stage(\"Build\") {\n            steps {\n                echo \"Building...\"\n            }\n        }\n    }\n}</textarea></body></html>"""  # noqa: E501
+    jenkins_build._jenkins.server = 'http://localhost:8080/'
+    jenkins_build._jenkins.jenkins_open.return_value = html
+
+    sourcecode = jenkins_build.get_build_sourcecode('folder-one/job-two', 110)
+    assert 'pipeline' in sourcecode
+    assert 'stage("Build")' in sourcecode
+    assert 'echo "Building..."' in sourcecode
+
+    # Check that jenkins_open was called with the correct URL
+    called_args = jenkins_build._jenkins.jenkins_open.call_args[0][0]
+    assert called_args.method == 'GET'
+    assert '/replay' in called_args.url
+
+
+def test_get_build_sourcecode_no_script(jenkins_build):
+    # HTML without textarea/script
+    html = '<html><body><h1>No script here</h1></body></html>'
+    jenkins_build._jenkins.server = 'http://localhost:8080/'
+    jenkins_build._jenkins.jenkins_open.return_value = html
+
+    sourcecode = jenkins_build.get_build_sourcecode('folder-one/job-two', 110)
+    assert sourcecode == 'No Script found'
+
+
 def test_build_job(jenkins_build):
     assert jenkins_build.build_job('job', parameters=None) == 1
 

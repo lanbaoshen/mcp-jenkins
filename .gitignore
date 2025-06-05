@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+docker
+.vscode/mcp.json
+uv.lock
