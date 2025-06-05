@@ -1,12 +1,10 @@
 from uuid import uuid4
 
+import requests
+from bs4 import BeautifulSoup
 from jenkins import Jenkins
 
 from mcp_jenkins.models.build import Build
-
-import requests
-from requests import exceptions as req_exc
-from bs4 import BeautifulSoup
 
 
 class JenkinsBuild:
@@ -49,7 +47,7 @@ class JenkinsBuild:
 
     def stop_build(self, fullname: str, number: int) -> None:
         return self._jenkins.stop_build(fullname, number)
-    
+
     def get_build_sourcecode(self, fullname: str, number: int) -> str:
         """
         Retrieve the pipeline source code of a specific build in Jenkins.
@@ -61,22 +59,25 @@ class JenkinsBuild:
         Returns:
             str: The source code of the Jenkins pipeline for the specified build.
         """
-        
+
         splitted_path = fullname.split('/')
-        
+
         name = '/job/'.join(splitted_path[:-1])
         short_name = splitted_path[-1]
 
-        JENKINS_URL = self._jenkins.server.rstrip('/')
-        BUILD_INFO = f'{JENKINS_URL}/job/{name}/job/{short_name}/{number}/replay'
-        
-        response = self._jenkins.jenkins_open(requests.Request(
-            'GET', BUILD_INFO,
-        ))
+        jenkins_url = self._jenkins.server.rstrip('/')
+        build_info = f'{jenkins_url}/job/{name}/job/{short_name}/{number}/replay'
+
+        response = self._jenkins.jenkins_open(
+            requests.Request(
+                'GET',
+                build_info,
+            )
+        )
 
         soup = BeautifulSoup(response, 'html.parser')
         textarea = soup.find('textarea', {'name': '_.mainScript'})
         if textarea:
-            return textarea.text
+            return str(textarea.text)
         else:
-            return "No Script found"
+            return 'No Script found'
