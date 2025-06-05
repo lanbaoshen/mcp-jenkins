@@ -53,6 +53,28 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 }
 ```
 
+#### VSCode Copilot Chat
+1. Create `.vscode` folder with `mcp.json` file in you workspace for local setup or edit `settings.json` trough settings menù.
+2. Insert the following configuration:
+```json
+{
+    "servers": {
+        "jenkins": {
+            "url": "http://localhost:3000/sse",
+            "type": "sse"
+        }
+    }
+}
+```
+3. Run the Jenkins MCP server with the following command:
+```shell
+uvx mcp-jenkins \
+  --jenkins-url http://localhost:3000 \
+  --jenkins-username your_username  \
+  --jenkins-password your_password \
+  --transport sse --port 3000
+```
+
 #### line arguments
 ```shell
 # Stdio Mode
@@ -127,6 +149,7 @@ if __name__ == "__main__":
 | get_running_builds        | Get running builds                                                              |
 | stop_build                | Stop running build                                                              |
 | get_build_info            | Get build info                                                                  |
+| get_build_sourcecode      | Get the pipeline source code of a specific build in Jenkins
 | get_job_info              | Get job info                                                                    |
 | build_job                 | Build a job with param                                                          |
 | get_build_logs            | Get build logs                                                                  |
