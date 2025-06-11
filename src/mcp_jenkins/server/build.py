@@ -31,13 +31,13 @@ async def get_build_info(ctx: Context, fullname: str, build_number: int | None =
     return client(ctx).build.get_build_info(fullname, build_number).model_dump(exclude_none=True)
 
 @mcp.tool()
-async def get_build_sourcecode(ctx: Context, fullname: str, build_number: int) -> str:
+async def get_build_sourcecode(ctx: Context, fullname: str, build_number: int | None = None) -> str:
     """
     Get the pipeline source code of a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
-        build_number: The number of the build
+        build_number: The number of the build, if None, get the last build
 
     Returns:
         str: The source code of the build
