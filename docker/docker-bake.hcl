@@ -36,8 +36,8 @@ target "docker-metadata-action" {
 
 target "mcp-jenkins" {
   inherits = ["docker-metadata-action"]
-  context = "."
-  dockerfile = "Dockerfile"
+  context = ".."
+  dockerfile = "docker/Dockerfile"
   target = "production"
   platforms = PLATFORM
   tags = REGISTRY != "" ? ["${REGISTRY}/mcp-jenkins:${TAG}"] : ["local/mcp-jenkins:${TAG}"]

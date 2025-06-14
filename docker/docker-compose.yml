@@ -1,20 +1,17 @@
-version: '3.8'
-
 services:
   mcp-jenkins:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     image: local/mcp-jenkins:latest
     container_name: mcp-jenkins
     environment:
-      # Set these environment variables or pass as command args
-      # JENKINS_URL: "https://your-jenkins.example.com"
-      # JENKINS_USERNAME: "your-username"
-      # JENKINS_PASSWORD: "your-password"
-    ports:
-      # Uncomment for SSE mode
-      # - "9887:9887"
+      JENKINS_URL: "${JENKINS_URL:-https://jenkins.example.com}"
+      JENKINS_USERNAME: "${JENKINS_USERNAME:-admin}"
+      JENKINS_PASSWORD: "${JENKINS_PASSWORD:-password}"
+    # Uncomment ports for SSE mode
+    # ports:
+    #   - "9887:9887"
     # Example command for stdio mode (modify as needed)
     command: [
       "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
@@ -38,8 +35,8 @@ services:
   # Example: Run in development mode with live code reload
   mcp-jenkins-dev:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       target: development
     image: local/mcp-jenkins:dev
     container_name: mcp-jenkins-dev

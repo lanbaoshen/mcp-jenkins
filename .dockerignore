@@ -75,7 +75,6 @@ docker-compose*.yml
 docker-bake*.hcl
 docker-bake*.json
 .dockerignore
-build.sh
 bake.sh
 
 # CI/CD

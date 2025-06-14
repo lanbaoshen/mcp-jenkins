@@ -149,7 +149,7 @@ if ! docker buildx version &> /dev/null; then
 fi
 
 # Check if bake file exists
-BAKE_FILE="docker-bake.hcl"
+BAKE_FILE="docker/docker-bake.hcl"
 if [[ ! -f "${BAKE_FILE}" ]]; then
     log_error "Bake file not found: ${BAKE_FILE}"
     exit 1
@@ -217,6 +217,7 @@ fi
 
 # Build the command
 BAKE_CMD="docker buildx bake"
+BAKE_CMD+=" --allow=fs.read=.."
 BAKE_CMD+=" --file ${BAKE_FILE}"
 BAKE_CMD+=" --progress ${PROGRESS}"
 
@@ -242,7 +243,7 @@ if [[ "${PRINT_ONLY}" == "true" ]]; then
     echo "${BAKE_CMD}"
     echo ""
     log_info "Bake configuration preview:"
-    docker buildx bake --file "${BAKE_FILE}" --print "${TARGET}" 2>/dev/null || log_warning "Could not print bake configuration"
+    docker buildx bake --allow=fs.read=.. --file "${BAKE_FILE}" --print "${TARGET}" 2>/dev/null || log_warning "Could not print bake configuration"
     exit 0
 fi
 

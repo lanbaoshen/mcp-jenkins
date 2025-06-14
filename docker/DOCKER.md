@@ -1,15 +1,17 @@
 # Docker Setup for MCP Jenkins
 
-This directory contains Docker configuration files to containerize the MCP Jenkins application.
+The `docker/` directory contains Docker configuration files to containerize the MCP Jenkins application.
 
 ## Files
 
-- `Dockerfile` - Multi-stage Docker image definition
-- `build.sh` - Comprehensive build script with multiple options
+- `docker/Dockerfile` - Multi-stage Docker image definition
 - `bake.sh` - Docker Buildx Bake build script (recommended)
-- `docker-bake.hcl` - Buildx Bake configuration file
-- `docker-compose.yml` - Docker Compose configuration for easy deployment
-- `.dockerignore` - Files to exclude from Docker build context
+- `docker/docker-bake.hcl` - Buildx Bake configuration file
+- `docker/docker-compose.yml` - Docker Compose configuration for easy deployment
+- `docker/.dockerignore` - Files to exclude from Docker build context
+- `.env` - Environment file that sets COMPOSE_FILE for simplified usage
+
+> **Note:** The `.env` file contains `COMPOSE_FILE=docker/docker-compose.yml`, which allows you to run `docker-compose` commands from the project root without needing the `-f` flag.
 
 ## Quick Start
 
@@ -43,25 +45,6 @@ This directory contains Docker configuration files to containerize the MCP Jenki
 ./bake.sh all
 ```
 
-#### Using Traditional Build Script
-
-```bash
-# Basic build
-./build.sh
-
-# Build with custom tag
-./build.sh --tag v1.0.0
-
-# Build for multiple architectures
-./build.sh --platform linux/amd64,linux/arm64
-
-# Build without cache
-./build.sh --no-cache
-
-# Build and push to registry
-./build.sh --tag v1.0.0 --push --registry your-registry.com
-```
-
 ### 2. Run the Container
 
 #### Using Docker directly:
@@ -81,8 +64,6 @@ docker run --rm -p 9887:9887 local/mcp-jenkins:latest \
   --transport sse \
   --port 9887
 ```
-  --port 9887
-```
 
 #### Using Docker Compose:
 
@@ -92,13 +73,13 @@ export JENKINS_URL="https://your-jenkins.example.com"
 export JENKINS_USERNAME="your-username"
 export JENKINS_PASSWORD="your-password"
 
-# Run in stdio mode
+# Run in stdio mode (from project root)
 docker-compose up mcp-jenkins
 
 # Run in SSE mode (modify docker-compose.yml first)
 docker-compose up mcp-jenkins
 
-# Run development version
+# Run development version (from project root)
 docker-compose --profile development up mcp-jenkins-dev
 ```
 
@@ -116,26 +97,26 @@ docker run --rm \
 
 ## Build Script Options
 
-The `build.sh` script supports various options:
+The `bake.sh` script provides comprehensive build options using Docker Buildx Bake:
 
 ```bash
-./build.sh --help
+./bake.sh --help
 ```
 
 ### Common Use Cases
 
 ```bash
-# Development build with all dependencies
-./build.sh --tag dev --build-arg TARGET=development
+# Development build
+./bake.sh mcp-jenkins-dev
 
-# Production build (default)
-./build.sh --tag latest
+# Production build with custom tag
+./bake.sh --tag v1.0.0
 
 # Multi-architecture build for registry
-./build.sh --tag v1.0.0 --platform linux/amd64,linux/arm64 --push --registry your-registry.com
+./bake.sh mcp-jenkins-multi --tag v1.0.0 --push --registry your-registry.com
 
-# Clean build without cache
-./build.sh --no-cache --clean
+# Build with GitHub Actions cache
+./bake.sh --cache-from gha --cache-to gha
 ```
 
 ## Multi-Stage Build
@@ -147,7 +128,7 @@ The Dockerfile includes two stages:
 
 To build development image:
 ```bash
-docker build --target development -t mcp-jenkins:dev .
+docker build -f docker/Dockerfile --target development -t mcp-jenkins:dev .
 ```
 
 ## Docker Buildx Bake
@@ -156,7 +137,7 @@ Docker Buildx Bake provides a more powerful and flexible way to build Docker ima
 
 ### Bake Configuration
 
-The `docker-bake.hcl` file defines several build targets:
+The `docker/docker-bake.hcl` file defines several build targets:
 
 - **mcp-jenkins**: Production image (default)
 - **mcp-jenkins-dev**: Development image with dev dependencies
@@ -241,7 +222,7 @@ The `bake.sh` script provides:
 
 3. **Build cache issues**:
    ```bash
-   ./build.sh --no-cache
+   ./bake.sh --cache-from "" --cache-to ""
    ```
 
 ### Runtime Issues
@@ -265,7 +246,7 @@ The `bake.sh` script provides:
 
 1. **Build development image**:
    ```bash
-   ./build.sh --tag dev --build-arg TARGET=development
+   ./bake.sh mcp-jenkins-dev
    ```
 
 2. **Run with code mounting**:
