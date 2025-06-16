@@ -8,6 +8,7 @@ import click
 @click.option('--jenkins-username', required=True)
 @click.option('--jenkins-password', required=True)
 @click.option('--jenkins-timeout', default=5)
+@click.option('--read-only', default=False, is_flag=True, help='Whether to run in read-only mode, default is False')
 @click.option('--transport', type=click.Choice(['stdio', 'sse']), default='stdio')
 @click.option('--port', default=9887, help='Port to listen on for SSE transport')
 @click.option(
@@ -22,6 +23,7 @@ def main(
     jenkins_username: str,
     jenkins_password: str,
     jenkins_timeout: int,
+    read_only: bool,  # noqa: FBT001
     transport: str,
     port: int,
     tool_alias: str,
@@ -38,6 +40,7 @@ def main(
         os.environ['jenkins_password'] = jenkins_password
         os.environ['jenkins_timeout'] = str(jenkins_timeout)
         os.environ['tool_alias'] = tool_alias
+        os.environ['read_only'] = str(read_only).lower()
     else:
         raise ValueError('Please provide valid jenkins_url, jenkins_username, and jenkins_password')
 

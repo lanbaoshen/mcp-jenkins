@@ -3,7 +3,7 @@ from mcp.server.fastmcp import Context
 from mcp_jenkins.server import client, mcp
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_all_queue_items(ctx: Context) -> list[dict]:
     """
     Get all items in Jenkins queue
@@ -14,7 +14,7 @@ async def get_all_queue_items(ctx: Context) -> list[dict]:
     return [item.model_dump(exclude_none=True) for item in client(ctx).queue_item.get_all_queue_items()]
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_queue_item(ctx: Context, id_: int) -> dict:
     """
     Get a specific item in Jenkins queue
@@ -28,7 +28,7 @@ async def get_queue_item(ctx: Context, id_: int) -> dict:
     return client(ctx).queue_item.get_queue_item(id_).model_dump(exclude_none=True)
 
 
-@mcp.tool()
+@mcp.tool(tag='write')
 async def cancel_queue_item(ctx: Context, id_: int) -> None:
     """
     Cancel a specific item in Jenkins queue

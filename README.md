@@ -78,7 +78,7 @@ uvx mcp-jenkins \
 #### line arguments
 ```shell
 # Stdio Mode
-uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx
+uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --read-only
 
 # SSE Mode
 uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --transport sse --port 9887

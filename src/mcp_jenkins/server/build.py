@@ -3,7 +3,7 @@ from mcp.server.fastmcp import Context
 from mcp_jenkins.server import client, mcp
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_running_builds(ctx: Context) -> list[dict]:
     """
     Get all running builds from Jenkins
@@ -14,7 +14,7 @@ async def get_running_builds(ctx: Context) -> list[dict]:
     return [build.model_dump(exclude_none=True) for build in client(ctx).build.get_running_builds()]
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_build_info(ctx: Context, fullname: str, build_number: int | None = None) -> dict:
     """
     Get specific build info from Jenkins
@@ -30,7 +30,8 @@ async def get_build_info(ctx: Context, fullname: str, build_number: int | None =
         build_number = client(ctx).job.get_job_info(fullname).lastBuild.number
     return client(ctx).build.get_build_info(fullname, build_number).model_dump(exclude_none=True)
 
-@mcp.tool()
+
+@mcp.tool(tag='read')
 async def get_build_sourcecode(ctx: Context, fullname: str, build_number: int | None = None) -> str:
     """
     Get the pipeline source code of a specific build in Jenkins
@@ -46,7 +47,8 @@ async def get_build_sourcecode(ctx: Context, fullname: str, build_number: int | 
         build_number = client(ctx).job.get_job_info(fullname).lastBuild.number
     return client(ctx).build.get_build_sourcecode(fullname, build_number)
 
-@mcp.tool()
+
+@mcp.tool(tag='write')
 async def build_job(ctx: Context, fullname: str, parameters: dict = None) -> int:
     """
     Build a job in Jenkins
@@ -61,7 +63,7 @@ async def build_job(ctx: Context, fullname: str, parameters: dict = None) -> int
     return client(ctx).build.build_job(fullname, parameters)
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_build_logs(ctx: Context, fullname: str, build_number: str) -> str:
     """
     Get logs from a specific build in Jenkins
@@ -77,7 +79,7 @@ async def get_build_logs(ctx: Context, fullname: str, build_number: str) -> str:
     return client(ctx).build.get_build_logs(fullname, build_number)
 
 
-@mcp.tool()
+@mcp.tool(tag='write')
 async def stop_build(ctx: Context, fullname: str, build_number: int) -> None:
     """
     Stop a specific build in Jenkins

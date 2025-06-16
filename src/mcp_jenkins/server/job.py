@@ -3,7 +3,7 @@ from mcp.server.fastmcp import Context
 from mcp_jenkins.server import client, mcp
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_all_jobs(ctx: Context) -> list[dict]:
     """
     Get all jobs from Jenkins
@@ -14,7 +14,7 @@ async def get_all_jobs(ctx: Context) -> list[dict]:
     return [job.model_dump(exclude_none=True) for job in client(ctx).job.get_all_jobs()]
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_job_config(ctx: Context, fullname: str) -> str:
     """
     Get specific job config from Jenkins
@@ -28,7 +28,7 @@ async def get_job_config(ctx: Context, fullname: str) -> str:
     return client(ctx).job.get_job_config(fullname)
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def search_jobs(
     ctx: Context,
     class_pattern: str = None,
@@ -62,7 +62,7 @@ async def search_jobs(
     ]
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_job_info(ctx: Context, fullname: str) -> dict:
     """
     Get specific job info from Jenkins
@@ -76,7 +76,7 @@ async def get_job_info(ctx: Context, fullname: str) -> dict:
     return client(ctx).job.get_job_info(fullname).model_dump(exclude_none=True)
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_multibranch_jobs(
     ctx: Context, class_pattern: str = None, name_pattern: str = None, fullname_pattern: str = None
 ) -> list[dict]:
@@ -104,7 +104,7 @@ async def get_multibranch_jobs(
     return [job.model_dump(exclude_none=True) for job in jobs]
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def get_multibranch_branches(ctx: Context, fullname: str) -> list[dict]:
     """
     Get all branches for a specific multibranch pipeline job
@@ -123,7 +123,7 @@ async def get_multibranch_branches(ctx: Context, fullname: str) -> list[dict]:
     return [job.model_dump(exclude_none=True) for job in job_info.jobs]
 
 
-@mcp.tool()
+@mcp.tool(tag='read')
 async def scan_multibranch_pipeline(ctx: Context, fullname: str) -> str:
     """
     Trigger a scan of a multibranch pipeline to discover new branches
