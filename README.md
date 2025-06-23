@@ -195,3 +195,10 @@ uv run pytest --cov=mcp_jenkins
 
 ## License
 Licensed under MIT - see [LICENSE](LICENSE) file. This is not an official Jenkins product.
+
+
+## MCP-Jenkins in MCP Registries
+- https://mcpreview.com/mcp-servers/lanbaoshen/mcp-jenkins
+- https://smithery.ai/server/@lanbaoshen/mcp-jenkins
+- https://glama.ai/mcp/servers/@lanbaoshen/mcp-jenkins
+
