@@ -58,7 +58,7 @@ async def build_job(ctx: Context, fullname: str, parameters: dict = None) -> int
         parameters: Update the default parameters of the job.
 
     Returns:
-        The build number of the job
+        The queue item number of the job, only valid for about five minutes after the job completes
     """
     return client(ctx).build.build_job(fullname, parameters)
 
