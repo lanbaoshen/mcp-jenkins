@@ -2,7 +2,7 @@ import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Literal, override
+from typing import Literal
 
 from mcp.server.fastmcp import Context
 from mcp.server.fastmcp import FastMCP as _FastMCP
@@ -12,7 +12,6 @@ from mcp_jenkins.jenkins import JenkinsClient
 
 
 class FastMCP(_FastMCP):
-    @override
     def tool(
         self, name: str | None = None, description: str | None = None, tag: Literal['read', 'write'] = 'read'
     ) -> Callable[[AnyFunction], AnyFunction]:
