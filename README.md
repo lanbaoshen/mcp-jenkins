@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/lanbaoshen-mcp-jenkins-badge.png)](https://mseep.ai/app/lanbaoshen-mcp-jenkins)
+
 # MCP Jenkins
 ![PyPI Version](https://img.shields.io/pypi/v/mcp-jenkins)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/mcp-jenkins)
