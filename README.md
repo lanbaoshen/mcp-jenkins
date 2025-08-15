@@ -1,8 +1,6 @@
 # MCP Jenkins
 ![PyPI Version](https://img.shields.io/pypi/v/mcp-jenkins)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/mcp-jenkins)
 [![PyPI Downloads](https://static.pepy.tech/badge/mcp-jenkins)](https://pepy.tech/projects/mcp-jenkins)
-[![smithery badge](https://smithery.ai/badge/@lanbaoshen/mcp-jenkins)](https://smithery.ai/server/@lanbaoshen/mcp-jenkins)
 [![test](https://github.com/lanbaoshen/mcp-jenkins/actions/workflows/test.yml/badge.svg)](https://github.com/lanbaoshen/mcp-jenkins/actions/workflows/test.yml/badge.svg)
 ![License](https://img.shields.io/github/license/lanbaoshen/mcp-jenkins)
 
@@ -203,3 +201,6 @@ Licensed under MIT - see [LICENSE](LICENSE) file. This is not an official Jenkin
 - https://glama.ai/mcp/servers/@lanbaoshen/mcp-jenkins
 - https://mseep.ai/app/lanbaoshen-mcp-jenkins
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=lanbaoshen/mcp-jenkins&type=Date)](https://www.star-history.com/#lanbaoshen/mcp-jenkins&Date)
