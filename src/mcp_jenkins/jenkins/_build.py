@@ -1,3 +1,5 @@
+import re
+from typing import Literal
 from uuid import uuid4
 
 import requests
@@ -32,18 +34,30 @@ class JenkinsBuild:
                     break
         return self._jenkins.build_job(fullname, parameters)
 
-    def get_build_logs(self, fullname: str, number: int) -> str:
+    def get_build_logs(
+        self, fullname: str, number: int, pattern: str = None, limit: int = 1000, seq: Literal['asc', 'desc'] = 'asc'
+    ) -> str:
         """
         Retrieve logs from a specific build.
 
         Args:
             fullname: The fullname of the job
             number: The build number
+            pattern: A pattern to filter the logs
+            limit: The maximum number of lines to retrieve
+            seq: Priority order of log returns
 
         Returns:
             str: The logs of the build
         """
-        return self._jenkins.get_build_console_output(fullname, number)
+        result = []
+        lines = self._jenkins.get_build_console_output(fullname, number).split('\n')
+        for line in lines if seq == 'asc' else reversed(lines):
+            if pattern is None or re.search(pattern, line):
+                result.append(line)
+            if len(result) >= limit:
+                break
+        return '\n'.join(result if seq == 'asc' else reversed(result))
 
     def stop_build(self, fullname: str, number: int) -> None:
         return self._jenkins.stop_build(fullname, number)

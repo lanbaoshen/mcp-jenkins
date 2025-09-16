@@ -187,6 +187,24 @@ def test_get_build_logs_empty(jenkins_build):
     jenkins_build._jenkins.get_build_console_output.assert_called_once_with('folder-one/job-two', 110)
 
 
+def test_get_build_log_asc_pattern_limit(jenkins_build):
+    jenkins_build._jenkins.get_build_console_output.return_value = '1 Foo\n2 Foo\n3 Foo\n'
+
+    logs = jenkins_build.get_build_logs(fullname='folder-one/job-two', number=110, pattern='Foo', limit=1, seq='asc')
+
+    assert logs == '1 Foo'
+    jenkins_build._jenkins.get_build_console_output.assert_called_once_with('folder-one/job-two', 110)
+
+
+def test_get_build_log_desc_pattern_limit(jenkins_build):
+    jenkins_build._jenkins.get_build_console_output.return_value = '1 Foo\n2 Foo\n3 Foo\n'
+
+    logs = jenkins_build.get_build_logs(fullname='folder-one/job-two', number=110, pattern='Foo', limit=2, seq='desc')
+
+    assert logs == '2 Foo\n3 Foo'
+    jenkins_build._jenkins.get_build_console_output.assert_called_once_with('folder-one/job-two', 110)
+
+
 def test_get_build_logs_unicode(jenkins_build):
     # Test handling of logs with unicode characters
     expected_logs = 'Build started\n🚀 Deploying\n✅ Success\n❌ Failed step\n'

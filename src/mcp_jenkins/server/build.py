@@ -1,3 +1,5 @@
+from typing import Literal
+
 from mcp.server.fastmcp import Context
 
 from mcp_jenkins.server import client, mcp
@@ -64,19 +66,29 @@ async def build_job(ctx: Context, fullname: str, parameters: dict = None) -> int
 
 
 @mcp.tool(tag='read')
-async def get_build_logs(ctx: Context, fullname: str, build_number: str) -> str:
+async def get_build_logs(
+    ctx: Context,
+    fullname: str,
+    build_number: str,
+    pattern: str = None,
+    limit: int = 100,
+    seq: Literal['asc', 'desc'] = 'asc',
+) -> str:
     """
     Get logs from a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
         build_number: The number of the build
+        pattern: A pattern to filter the logs
+        limit: The maximum number of lines to retrieve
+        seq: Priority order of log returns
 
     Returns:
         str: The logs of the build
     """
     build_number = int(build_number)
-    return client(ctx).build.get_build_logs(fullname, build_number)
+    return client(ctx).build.get_build_logs(fullname, build_number, pattern, limit, seq)
 
 
 @mcp.tool(tag='write')
