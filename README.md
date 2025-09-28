@@ -51,6 +51,8 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 }
 ```
 
+**Note: You can set your Jenkins token to password too!**
+
 #### VSCode Copilot Chat
 1. Create `.vscode` folder with `mcp.json` file in you workspace for local setup or edit `settings.json` trough settings menù.
 2. Insert the following configuration:
@@ -69,7 +71,7 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 uvx mcp-jenkins \
   --jenkins-url http://localhost:3000 \
   --jenkins-username your_username  \
-  --jenkins-password your_password \
+  --jenkins-password your_password_or_token \
   --transport sse --port 3000
 ```
 
