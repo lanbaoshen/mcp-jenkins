@@ -10,7 +10,9 @@ startCommand:
     required:
       - jenkinsUrl
       - jenkinsUsername
-      - jenkinsPassword
+    anyOf:
+      - required: ["jenkinsPassword"]
+      - required: ["jenkinsToken"]
     properties:
       jenkinsUrl:
         type: string
@@ -20,7 +22,10 @@ startCommand:
         description: The username to access Jenkins
       jenkinsPassword:
         type: string
-        description: The password to access Jenkins
+        description: The password to access Jenkins (mutually exclusive with jenkinsToken)
+      jenkinsToken:
+        type: string
+        description: The API token to access Jenkins (mutually exclusive with jenkinsPassword)
       jenkinsTimeout:
         type: number
         default: 5
@@ -41,10 +46,17 @@ startCommand:
       const args = [
         '--jenkins-url', config.jenkinsUrl,
         '--jenkins-username', config.jenkinsUsername,
-        '--jenkins-password', config.jenkinsPassword,
         '--jenkins-timeout', config.jenkinsTimeout.toString(),
         '--transport', config.transport
       ];
+      
+      // Add authentication - either password or token
+      if (config.jenkinsPassword) {
+        args.push('--jenkins-password', config.jenkinsPassword);
+      } else if (config.jenkinsToken) {
+        args.push('--jenkins-token', config.jenkinsToken);
+      }
+      
       if (config.transport === 'sse') {
         args.push('--port', config.port.toString());
       }
@@ -53,7 +65,9 @@ startCommand:
   exampleConfig:
     jenkinsUrl: http://example.jenkins.server
     jenkinsUsername: admin
+    # Use either password or token for authentication
     jenkinsPassword: adminpass
+    # jenkinsToken: 11abcdef1234567890abcdef1234567890ab
     jenkinsTimeout: 5
     transport: stdio
     port: 9887

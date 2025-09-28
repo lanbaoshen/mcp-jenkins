@@ -15,6 +15,15 @@ def mock_jenkins_config():
 
 
 @pytest.fixture
+def mock_jenkins_config_with_token():
+    return {
+        'username': 'test_user',
+        'password': 'test_api_token_123456789',  # API token used as password
+        'url': 'http://localhost:8080',
+    }
+
+
+@pytest.fixture
 def mock_jenkins():
     mock_jenkins = MagicMock()
     yield mock_jenkins

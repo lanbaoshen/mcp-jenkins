@@ -6,6 +6,11 @@
 
 The Model Context Protocol (MCP) is an open-source implementation that bridges Jenkins with AI language models following Anthropic's MCP specification. This project enables secure, contextual AI interactions with Jenkins tools while maintaining data privacy and security.
 
+## Authentication
+
+For enhanced security, use Jenkins API tokens instead of passwords:
+1. In Jenkins, go to your user profile → Configure → API Token
+2. Generate a new token and use `--jenkins-token` instead of `--jenkins-password`
 
 ## Cursor Demo
 ![cursor demo](https://github.com/user-attachments/assets/ba954a67-e9ca-4d38-b962-19fb8856bdde)
@@ -44,7 +49,8 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
         "mcp-jenkins",
         "--jenkins-url=xxx",
         "--jenkins-username=xxx",
-        "--jenkins-password=xxx"
+        "--jenkins-token=xxx"
+        // OR use password: "--jenkins-password=xxx"
       ]
     }
   }
@@ -69,17 +75,17 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 uvx mcp-jenkins \
   --jenkins-url http://localhost:3000 \
   --jenkins-username your_username  \
-  --jenkins-password your_password \
+  --jenkins-token your_api_token \
   --transport sse --port 3000
 ```
 
 #### line arguments
 ```shell
-# Stdio Mode
-uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --read-only
+# Stdio Mode with token (recommended)
+uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-token xxx --read-only
 
-# SSE Mode
-uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --transport sse --port 9887
+# SSE Mode with token (recommended)
+uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-token xxx --transport sse --port 9887
 ```
 
 #### AutoGen
@@ -109,7 +115,7 @@ async def main() -> None:
             'mcp-jenkins',
             '--jenkins-username',
             'xxx',
-            '--jenkins-password',
+            '--jenkins-token',
             'xxx',
             '--jenkins-url',
             'xxx'
@@ -165,10 +171,10 @@ if __name__ == "__main__":
 ```shell
 # Using MCP Inspector
 # For installed package
-npx @modelcontextprotocol/inspector uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx
+npx @modelcontextprotocol/inspector uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-token xxx
 
 # For local development version
-npx @modelcontextprotocol/inspector uv --directory /path/to/your/mcp-jenkins run mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx
+npx @modelcontextprotocol/inspector uv --directory /path/to/your/mcp-jenkins run mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-token xxx
 ```
 
 ### Pre-Commit Hook
