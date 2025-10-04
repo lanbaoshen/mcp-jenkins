@@ -153,6 +153,7 @@ if __name__ == "__main__":
 | get_job_info              | Get job info                                                                    |
 | build_job                 | Build a job with param                                                          |
 | get_build_logs            | Get build logs                                                                  |
+| get_test_results          | Get test results for a specific build                                           |
 | get_all_nodes             | Get nodes                                                                       |
 | get_node_config           | Get the config of node                                                          |
 | get_all_queue_items       | Get all queue items                                                             |

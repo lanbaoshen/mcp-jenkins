@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from jenkins import Jenkins
 
 from mcp_jenkins.models.build import Build
+from mcp_jenkins.models.test_result import JenkinsTestCase, JenkinsTestReport, JenkinsTestSuite
 
 
 class JenkinsBuild:
@@ -95,3 +96,57 @@ class JenkinsBuild:
             return str(textarea.text)
         else:
             return 'No Script found'
+
+    def get_test_report(self, fullname: str, number: int) -> JenkinsTestReport:
+        """
+        Retrieve test results from a specific build in Jenkins.
+
+        Args:
+            fullname: The fullname of the job
+            number: The build number
+
+        Returns:
+            TestReport: The test results of the build
+        """
+        test_report = self._jenkins.get_build_test_report(fullname, number)
+
+        # If test_report is None (no test results), return empty test report
+        if test_report is None:
+            return JenkinsTestReport(
+                failCount=0,
+                skipCount=0,
+                passCount=0,
+                totalCount=0,
+                duration=0.0,
+                suites=[],
+            )
+
+        # Parse test suites and cases
+        suites = []
+        for suite_data in test_report.get('suites', []):
+            cases = []
+            for case_data in suite_data.get('cases', []):
+                cases.append(
+                    JenkinsTestCase(
+                        className=case_data.get('className', ''),
+                        name=case_data.get('name', ''),
+                        status=case_data.get('status', ''),
+                        duration=case_data.get('duration', 0.0),
+                        errorDetails=case_data.get('errorDetails'),
+                        errorStackTrace=case_data.get('errorStackTrace'),
+                        skipped=case_data.get('skipped', False),
+                        age=case_data.get('age', 0),
+                    )
+                )
+            suites.append(
+                JenkinsTestSuite(name=suite_data.get('name', ''), duration=suite_data.get('duration', 0.0), cases=cases)
+            )
+
+        return JenkinsTestReport(
+            failCount=test_report.get('failCount', 0),
+            skipCount=test_report.get('skipCount', 0),
+            passCount=test_report.get('passCount', 0),
+            totalCount=test_report.get('totalCount', 0),
+            duration=test_report.get('duration', 0.0),
+            suites=suites,
+        )
