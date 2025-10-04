@@ -2,6 +2,7 @@ import pytest
 
 from mcp_jenkins.jenkins._build import JenkinsBuild
 from mcp_jenkins.models.build import Build
+from mcp_jenkins.models.test_result import JenkinsTestCase, JenkinsTestReport, JenkinsTestSuite
 
 RUNNING_BUILDS = [
     {
@@ -48,6 +49,80 @@ BUILD_INFO = {
         'number': 109,
         'url': 'http://example.com/job/weekly/job/folder-one/job/job-two/109/',
     },
+}
+
+TEST_REPORT_DATA = {
+    'failCount': 2,
+    'skipCount': 1,
+    'passCount': 5,
+    'totalCount': 8,
+    'duration': 123.45,
+    'suites': [
+        {
+            'name': 'TestSuite1',
+            'duration': 50.0,
+            'cases': [
+                {
+                    'className': 'com.example.TestClass1',
+                    'name': 'test_passed_1',
+                    'status': 'PASSED',
+                    'duration': 10.0,
+                    'skipped': False,
+                    'age': 0,
+                },
+                {
+                    'className': 'com.example.TestClass1',
+                    'name': 'test_failed_1',
+                    'status': 'FAILED',
+                    'duration': 15.0,
+                    'errorDetails': 'AssertionError: Expected 5 but got 3',
+                    'errorStackTrace': 'at TestClass1.test_failed_1(TestClass1.java:42)',
+                    'skipped': False,
+                    'age': 1,
+                },
+                {
+                    'className': 'com.example.TestClass1',
+                    'name': 'test_skipped_1',
+                    'status': 'SKIPPED',
+                    'duration': 0.0,
+                    'skipped': True,
+                    'age': 0,
+                },
+            ],
+        },
+        {
+            'name': 'TestSuite2',
+            'duration': 73.45,
+            'cases': [
+                {
+                    'className': 'com.example.TestClass2',
+                    'name': 'test_passed_2',
+                    'status': 'PASSED',
+                    'duration': 20.0,
+                    'skipped': False,
+                    'age': 0,
+                },
+                {
+                    'className': 'com.example.TestClass2',
+                    'name': 'test_regression',
+                    'status': 'REGRESSION',
+                    'duration': 25.0,
+                    'errorDetails': 'Regression detected',
+                    'errorStackTrace': 'at TestClass2.test_regression(TestClass2.java:100)',
+                    'skipped': False,
+                    'age': 0,
+                },
+                {
+                    'className': 'com.example.TestClass2',
+                    'name': 'test_fixed',
+                    'status': 'FIXED',
+                    'duration': 12.0,
+                    'skipped': False,
+                    'age': 5,
+                },
+            ],
+        },
+    ],
 }
 
 
@@ -228,3 +303,78 @@ def test_get_build_logs_not_found(jenkins_build):
 
 def test_stop_build(jenkins_build):
     assert jenkins_build.stop_build(fullname='folder-one/job-two', number=110) is None
+
+
+def test_get_test_report_with_results(jenkins_build):
+    """Test get_test_report returns properly formatted TestReport with test results"""
+    jenkins_build._jenkins.get_build_test_report.return_value = TEST_REPORT_DATA
+
+    test_report = jenkins_build.get_test_report(fullname='folder-one/job-two', number=110)
+
+    # Verify the test report structure
+    assert isinstance(test_report, JenkinsTestReport)
+    assert test_report.failCount == 2
+    assert test_report.skipCount == 1
+    assert test_report.passCount == 5
+    assert test_report.totalCount == 8
+    assert test_report.duration == 123.45
+
+    # Verify suites
+    assert len(test_report.suites) == 2
+
+    # Verify first suite
+    suite1 = test_report.suites[0]
+    assert suite1.name == 'TestSuite1'
+    assert suite1.duration == 50.0
+    assert len(suite1.cases) == 3
+
+    # Verify test cases in first suite
+    assert suite1.cases[0].name == 'test_passed_1'
+    assert suite1.cases[0].status == 'PASSED'
+    assert suite1.cases[0].className == 'com.example.TestClass1'
+
+    assert suite1.cases[1].name == 'test_failed_1'
+    assert suite1.cases[1].status == 'FAILED'
+    assert suite1.cases[1].errorDetails == 'AssertionError: Expected 5 but got 3'
+
+    assert suite1.cases[2].name == 'test_skipped_1'
+    assert suite1.cases[2].status == 'SKIPPED'
+    assert suite1.cases[2].skipped is True
+
+    # Verify second suite has REGRESSION and FIXED statuses
+    suite2 = test_report.suites[1]
+    assert suite2.cases[1].status == 'REGRESSION'
+    assert suite2.cases[2].status == 'FIXED'
+
+
+def test_get_test_report_no_results(jenkins_build):
+    """Test get_test_report returns empty TestReport when no test results available"""
+    jenkins_build._jenkins.get_build_test_report.return_value = None
+
+    test_report = jenkins_build.get_test_report(fullname='folder-one/job-two', number=110)
+
+    assert isinstance(test_report, JenkinsTestReport)
+    assert test_report.failCount == 0
+    assert test_report.skipCount == 0
+    assert test_report.passCount == 0
+    assert test_report.totalCount == 0
+    assert test_report.duration == 0.0
+    assert len(test_report.suites) == 0
+
+
+def test_get_test_report_empty_suites(jenkins_build):
+    """Test get_test_report with empty suites"""
+    jenkins_build._jenkins.get_build_test_report.return_value = {
+        'failCount': 0,
+        'skipCount': 0,
+        'passCount': 0,
+        'totalCount': 0,
+        'duration': 0.0,
+        'suites': [],
+    }
+
+    test_report = jenkins_build.get_test_report(fullname='folder-one/job-two', number=110)
+
+    assert test_report.failCount == 0
+    assert test_report.totalCount == 0
+    assert len(test_report.suites) == 0
