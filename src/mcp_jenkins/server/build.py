@@ -1,5 +1,6 @@
 from typing import Literal
 
+from jenkins import JenkinsException
 from mcp.server.fastmcp import Context
 
 from mcp_jenkins.server import client, mcp
@@ -108,7 +109,7 @@ async def get_test_results(
     ctx: Context,
     fullname: str,
     build_number: int | None = None,
-    status_filter: list[Literal['PASSED', 'SKIPPED', 'FAILED', 'FIXED', 'REGRESSION']] | None = None
+    status_filter: list[Literal['PASSED', 'SKIPPED', 'FAILED', 'FIXED', 'REGRESSION']] | None = None,
 ) -> dict:
     """
     Get test results from a specific build in Jenkins
@@ -126,27 +127,13 @@ async def get_test_results(
 
     try:
         test_report = client(ctx).build.get_test_report(fullname, build_number)
-    except Exception:
+    except JenkinsException:
         # Return empty test results if no test report is available
-        return {
-            "failCount": 0,
-            "skipCount": 0,
-            "passCount": 0,
-            "totalCount": 0,
-            "duration": 0.0,
-            "suites": []
-        }
+        return {'failCount': 0, 'skipCount': 0, 'passCount': 0, 'totalCount': 0, 'duration': 0.0, 'suites': []}
 
     # If test_report is None, return empty results
     if test_report is None:
-        return {
-            "failCount": 0,
-            "skipCount": 0,
-            "passCount": 0,
-            "totalCount": 0,
-            "duration": 0.0,
-            "suites": []
-        }
+        return {'failCount': 0, 'skipCount': 0, 'passCount': 0, 'totalCount': 0, 'duration': 0.0, 'suites': []}
 
     # Apply status filtering if specified
     if status_filter:

@@ -2,7 +2,7 @@ import pytest
 
 from mcp_jenkins.jenkins._build import JenkinsBuild
 from mcp_jenkins.models.build import Build
-from mcp_jenkins.models.test_result import JenkinsTestCase, JenkinsTestReport, JenkinsTestSuite
+from mcp_jenkins.models.test_result import JenkinsTestReport
 
 RUNNING_BUILDS = [
     {

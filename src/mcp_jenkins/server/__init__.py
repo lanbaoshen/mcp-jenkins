@@ -73,12 +73,14 @@ async def jenkins_lifespan(server: FastMCP) -> AsyncIterator[JenkinsContext]:
         jenkins_username = os.getenv('jenkins_username')
         jenkins_password = os.getenv('jenkins_password')
         jenkins_timeout = int(os.getenv('jenkins_timeout'))
+        jenkins_ssl_verify = os.getenv('jenkins_ssl_verify', 'true').lower() == 'true'
 
         client = JenkinsClient(
             url=jenkins_url,
             username=jenkins_username,
             password=jenkins_password,
             timeout=jenkins_timeout,
+            ssl_verify=jenkins_ssl_verify,
         )
 
         # Provide context to the application

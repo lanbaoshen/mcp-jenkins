@@ -24,6 +24,7 @@ dev = [
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.0",
+    "pytest-asyncio>=1.0.0",
     "uv>=0.6.12",
 ]
 

@@ -82,6 +82,9 @@ uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx 
 
 # SSE Mode
 uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --transport sse --port 9887
+
+# Connecting self-signed certificated Jenkins
+uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --transport sse --port 9887 --no-jenkins-ssl-verify
 ```
 
 #### AutoGen

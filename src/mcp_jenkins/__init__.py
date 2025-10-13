@@ -8,6 +8,12 @@ import click
 @click.option('--jenkins-username', required=True)
 @click.option('--jenkins-password', required=True)
 @click.option('--jenkins-timeout', default=5)
+@click.option(
+    '--jenkins-ssl-verify/--no-jenkins-ssl-verify',
+    'jenkins_ssl_verify',
+    default=True,
+    help=('Enable or disable Jenkins SSL verification'),
+)
 @click.option('--read-only', default=False, is_flag=True, help='Whether to run in read-only mode, default is False')
 @click.option('--transport', type=click.Choice(['stdio', 'sse']), default='stdio')
 @click.option('--port', default=9887, help='Port to listen on for SSE transport')
@@ -23,6 +29,7 @@ def main(
     jenkins_username: str,
     jenkins_password: str,
     jenkins_timeout: int,
+    jenkins_ssl_verify: bool,  # noqa: FBT001
     read_only: bool,  # noqa: FBT001
     transport: str,
     port: int,
@@ -39,6 +46,7 @@ def main(
         os.environ['jenkins_username'] = jenkins_username
         os.environ['jenkins_password'] = jenkins_password
         os.environ['jenkins_timeout'] = str(jenkins_timeout)
+        os.environ['jenkins_ssl_verify'] = str(jenkins_ssl_verify).lower()
         os.environ['tool_alias'] = tool_alias
         os.environ['read_only'] = str(read_only).lower()
     else:
@@ -48,6 +56,7 @@ def main(
 
     if transport == 'sse':
         mcp.settings.port = port
+
     mcp.run(transport=transport)
 
 
