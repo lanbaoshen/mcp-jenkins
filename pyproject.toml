@@ -5,7 +5,7 @@ description = "The Model Context Protocol (MCP) is an open-source implementation
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp>=1.6.0",
+    "mcp>=1.8.0",
     "pydantic>=2.11.1",
     "python-jenkins>=1.8.2",
     "beautifulsoup4>=4.12.2",
@@ -20,7 +20,7 @@ mcp-jenkins = "mcp_jenkins:main"
 
 [dependency-groups]
 dev = [
-    "mcp[cli]>=1.6.0",
+    "mcp[cli]>=1.8.0",
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.0",
