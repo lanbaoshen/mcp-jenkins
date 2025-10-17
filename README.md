@@ -80,6 +80,7 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
         }
     }
 }
+```
 
 3. Run the Jenkins MCP server with the following command:
 ```shell
