@@ -9,7 +9,7 @@ import click
 @click.option('--jenkins-password', required=True)
 @click.option('--jenkins-timeout', default=5)
 @click.option('--read-only', default=False, is_flag=True, help='Whether to run in read-only mode, default is False')
-@click.option('--transport', type=click.Choice(['stdio', 'sse']), default='stdio')
+@click.option('--transport', type=click.Choice(['stdio', 'sse', 'streamable-http']), default='stdio')
 @click.option('--port', default=9887, help='Port to listen on for SSE transport')
 @click.option(
     '--tool-alias',
@@ -46,7 +46,7 @@ def main(
 
     from mcp_jenkins.server import mcp
 
-    if transport == 'sse':
+    if transport in ['sse', 'streamable-http']:
         mcp.settings.port = port
     mcp.run(transport=transport)
 

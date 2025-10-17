@@ -56,6 +56,7 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 #### VSCode Copilot Chat
 1. Create `.vscode` folder with `mcp.json` file in you workspace for local setup or edit `settings.json` trough settings menù.
 2. Insert the following configuration:
+- SSE mode
 ```json
 {
     "servers": {
@@ -66,6 +67,21 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
     }
 }
 ```
+- Streamable-Http mode
+```json
+{
+    "servers": {
+        "mcp-jenkins-mcp": {
+            "autoApprove": [],
+            "disabled": false,
+            "timeout": 60,
+            "type": "streamableHttp",
+            "url": "http://localhost:3000/mcp"
+        }
+    }
+}
+```
+
 3. Run the Jenkins MCP server with the following command:
 ```shell
 uvx mcp-jenkins \
@@ -82,6 +98,9 @@ uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx 
 
 # SSE Mode
 uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --transport sse --port 9887
+
+# Streamable-Http Mode
+uvx mcp-jenkins --jenkins-url xxx --jenkins-username xxx --jenkins-password xxx --transport streamable-http --port 9887
 ```
 
 #### AutoGen
