@@ -174,4 +174,3 @@ cython_debug/
 
 docker
 .vscode/mcp.json
-uv.lock
