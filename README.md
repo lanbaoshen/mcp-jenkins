@@ -27,6 +27,15 @@ pip install mcp-jenkins
 npx -y @smithery/cli@latest install @lanbaoshen/mcp-jenkins --client claude
 ```
 
+#### Docker Installation
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/lanbaoshen/mcp-jenkins:latest
+```
+
+
 ### Configuration and Usage
 
 #### Cursor
