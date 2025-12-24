@@ -20,7 +20,8 @@
 #
 # RECENT CHANGES (v0.3.9):
 # - Base image: python:3.11-slim -> python:3.11-alpine (smaller image)
-# - Added Alpine build deps: gcc, musl-dev, libxml2-dev, libxslt-dev, libffi-dev
+# - Multi-stage build: build deps (gcc, musl-dev, etc.) only in builder stage
+# - Production image has only runtime libs (libxml2, libxslt, libffi)
 # - Dependency management: uv.lock committed, using uv sync --frozen
 # - uv version pinned via ARG UV_VERSION for reproducible builds
 # - Healthcheck: validates mcp_jenkins module import (not just Python)
@@ -28,7 +29,7 @@
 # - Venv at /app/.venv with PATH updated (no --system install)
 
 # ============================================================================
-# Base stage with common dependencies
+# Base stage with runtime dependencies only (no build tools)
 # ============================================================================
 FROM python:3.11-alpine AS base
 
@@ -51,15 +52,12 @@ LABEL security.non-root="true" \
       security.read-only-rootfs="compatible" \
       security.no-new-privileges="recommended"
 
-# Install build dependencies for Python packages requiring C compilation
-# Required for: lxml (BeautifulSoup4 parser), cryptography, and other native extensions
-# These are kept in the image as Alpine doesn't have pre-built wheels for many packages
+# Install only runtime libraries (not -dev packages)
+# These are required by compiled Python extensions (lxml, etc.)
 RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    libxml2-dev \
-    libxslt-dev \
-    libffi-dev
+    libxml2 \
+    libxslt \
+    libffi
 
 # Set environment variables for Python optimization
 # UV_PROJECT_ENVIRONMENT: Use consistent venv location for uv sync
@@ -82,10 +80,31 @@ RUN addgroup -g 10001 appuser && \
     adduser -D -u 10001 -G appuser -h /app appuser && \
     chown -R appuser:appuser /app
 
-# Install uv using official installer (faster and more reliable than pip)
+# ============================================================================
+# Builder stage with compilation tools for building Python packages
+# ============================================================================
+FROM base AS builder
+
+# Install build dependencies for Python packages requiring C compilation
+# Required for: lxml (BeautifulSoup4 parser), cryptography, and other native extensions
+# These are only present in the builder stage, not in the final image
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    libxml2-dev \
+    libxslt-dev \
+    libffi-dev
+
+# Install uv for dependency management
 # Pin version for reproducible builds - update periodically
-# Security note: Downloaded over HTTPS, checksum verification via official installer
-# Install to /usr/local/bin so it's available system-wide
+#
+# SECURITY CONSIDERATIONS:
+# - Downloaded from official astral.sh over HTTPS with TLS verification
+# - Version pinning ensures reproducible builds and prevents supply-chain attacks
+# - astral.sh is maintained by Astral (creators of Ruff), a trusted Python tooling vendor
+# - The install script is executed once at build time, not runtime
+# - For additional verification, compare SHA256 of downloaded binaries against
+#   official releases at: https://github.com/astral-sh/uv/releases
 ARG UV_VERSION=0.9.18
 ADD --chmod=755 https://astral.sh/uv/${UV_VERSION}/install.sh /install.sh
 RUN /install.sh && \
@@ -96,10 +115,7 @@ RUN /install.sh && \
 # ============================================================================
 # Development stage with all dependencies including dev tools
 # ============================================================================
-FROM base AS development
-
-# Switch to root for package installation
-USER root
+FROM builder AS development
 
 # Copy project files with lockfile for reproducible builds
 # Order: lockfile first for cache optimization, then source
@@ -128,12 +144,9 @@ ENTRYPOINT ["mcp-jenkins"]
 CMD ["--help"]
 
 # ============================================================================
-# Production stage with minimal dependencies and hardened security
+# Production builder stage - builds dependencies then discards build tools
 # ============================================================================
-FROM base AS production
-
-# Switch to root for package installation
-USER root
+FROM builder AS production-builder
 
 # Copy project files with lockfile for reproducible builds
 COPY --chown=appuser:appuser pyproject.toml uv.lock README.md LICENSE ./
@@ -143,6 +156,17 @@ COPY --chown=appuser:appuser src/ ./src/
 # --frozen: Fail if uv.lock is out of sync with pyproject.toml
 # --no-dev: Skip development dependencies for smaller, more secure image
 RUN uv sync --frozen --no-dev
+
+# ============================================================================
+# Production stage with minimal dependencies and hardened security
+# No build tools (gcc, musl-dev, etc.) - only runtime libraries
+# ============================================================================
+FROM base AS production
+
+# Copy the pre-built virtual environment from production-builder
+# This contains compiled packages without needing build tools in the final image
+COPY --from=production-builder --chown=appuser:appuser /app/.venv /app/.venv
+COPY --from=production-builder --chown=appuser:appuser /app/src /app/src
 
 # SECURITY HARDENING: Remove shell access for production
 # This prevents shell-based attacks if the container is compromised

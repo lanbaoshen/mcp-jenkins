@@ -121,27 +121,6 @@ run_test() {
     fi
 }
 
-# Docker run helper
-docker_run() {
-    docker run --rm --network host \
-        "${IMAGE_NAME}" \
-        --jenkins-url "${JENKINS_URL}" \
-        --jenkins-username "${JENKINS_USERNAME}" \
-        --jenkins-password "${JENKINS_PASSWORD}" \
-        "$@"
-}
-
-# Docker run with stdin for MCP protocol
-docker_run_mcp() {
-    local request="$1"
-    echo "${request}" | docker run --rm -i --network host \
-        "${IMAGE_NAME}" \
-        --jenkins-url "${JENKINS_URL}" \
-        --jenkins-username "${JENKINS_USERNAME}" \
-        --jenkins-password "${JENKINS_PASSWORD}" \
-        --transport stdio
-}
-
 echo ""
 echo "=============================================="
 echo "  MCP Jenkins Docker Integration Tests"
@@ -182,7 +161,7 @@ run_test "Help command works" \
 
 # Test 2: Module import
 run_test "Python module imports" \
-    "docker run --rm --entrypoint python ${IMAGE_NAME} -c 'import mcp_jenkins; print(\"OK\")'" \
+    "docker run --rm --entrypoint python3 ${IMAGE_NAME} -c 'import mcp_jenkins; print(\"OK\")'" \
     "OK"
 
 # Test 3: Jenkins connectivity
@@ -194,6 +173,10 @@ echo ""
 echo "----------------------------------------------"
 echo "  MCP Protocol Tests (stdio mode)"
 echo "----------------------------------------------"
+# NOTE: Tests use --network host for simplicity in accessing the Jenkins server.
+# In production, use dedicated Docker networks for proper network isolation.
+# Credentials are passed via CLI args for test convenience; this is acceptable
+# for local testing but should use secrets/env files in production.
 
 # Test 4: MCP Initialize
 MCP_INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
@@ -217,6 +200,8 @@ echo ""
 echo "----------------------------------------------"
 echo "  Transport Mode Tests"
 echo "----------------------------------------------"
+# NOTE: Using ports 19887/19888 instead of default 9887 to avoid conflicts
+# with any MCP server that might already be running on the host.
 
 # Test 7: SSE mode starts
 run_test "SSE mode starts" \

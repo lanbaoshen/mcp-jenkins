@@ -49,7 +49,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Virtual environments (not needed in container)
-.env
+# Note: .env already excluded in secrets section above
 .venv
 env/
 venv/

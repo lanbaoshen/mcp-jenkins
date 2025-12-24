@@ -45,11 +45,12 @@ services:
     #   JENKINS_PASSWORD: "${JENKINS_PASSWORD:-password}"
 
     # CREDENTIALS OPTION 2: Docker secrets (recommended for production)
-    # See secrets section below
-    secrets:
-      - jenkins_url
-      - jenkins_username
-      - jenkins_password
+    # Uncomment below and create secrets files first (see bottom of this file)
+    # Then modify the command to read from /run/secrets/* instead of env vars
+    # secrets:
+    #   - jenkins_url
+    #   - jenkins_username
+    #   - jenkins_password
 
     # CREDENTIALS OPTION 3: Mounted credential file (alternative)
     # volumes:
@@ -103,10 +104,11 @@ services:
         labels: "service,environment"
 
     # Container labels for monitoring and organization
+    # NOTE: Update version label when releasing new versions
     labels:
       - "com.mcp-jenkins.service=production"
       - "com.mcp-jenkins.security=hardened"
-      - "com.mcp-jenkins.version=0.3.9"
+      - "com.mcp-jenkins.version=${VERSION:-0.3.9}"
 
   # Development service (less security restrictions for debugging)
   mcp-jenkins-dev:
@@ -167,20 +169,27 @@ services:
 #
 # Secrets are mounted to /run/secrets/<secret_name> inside the container
 # Application needs to be modified to read from these files
-secrets:
-  jenkins_url:
-    # For local development, use file-based secrets
-    file: ./secrets/jenkins_url.txt
-    # For Docker Swarm, use external secrets:
-    # external: true
-
-  jenkins_username:
-    file: ./secrets/jenkins_username.txt
-    # external: true
-
-  jenkins_password:
-    file: ./secrets/jenkins_password.txt
-    # external: true
+#
+# To enable secrets:
+# 1. Create the secrets directory: mkdir -p secrets && chmod 700 secrets
+# 2. Create secret files (see SECURITY DEPLOYMENT GUIDE below)
+# 3. Uncomment the secrets section in the service above
+# 4. Uncomment the secrets definitions below
+#
+# secrets:
+#   jenkins_url:
+#     # For local development, use file-based secrets
+#     file: ./secrets/jenkins_url.txt
+#     # For Docker Swarm, use external secrets:
+#     # external: true
+#
+#   jenkins_username:
+#     file: ./secrets/jenkins_username.txt
+#     # external: true
+#
+#   jenkins_password:
+#     file: ./secrets/jenkins_password.txt
+#     # external: true
 
 # Network isolation
 # Create a dedicated network instead of using default bridge
