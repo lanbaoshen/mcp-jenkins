@@ -97,10 +97,11 @@ services:
         labels: "service,environment"
 
     # Container labels for monitoring and organization
+    # NOTE: Update VERSION default when releasing new versions
     labels:
       - "com.mcp-jenkins.service=production"
       - "com.mcp-jenkins.security=hardened"
-      - "com.mcp-jenkins.version=${VERSION:-latest}"
+      - "com.mcp-jenkins.version=${VERSION:-0.3.9}"
 
   # Development service (less security restrictions for debugging)
   mcp-jenkins-dev:
