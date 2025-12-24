@@ -36,6 +36,14 @@ updates:
       - "docker"
     reviewers:
       - "lanbaoshen"
+    groups:
+      # Group minor/patch updates; major updates reviewed separately
+      docker-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
