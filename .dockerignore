@@ -81,6 +81,8 @@ test/
 *.swp
 *.swo
 *.swn
+.*.swp
+.*.swo
 *~
 .project
 .pydevproject
@@ -148,13 +150,9 @@ setup.cfg
 *.temp
 temp/
 tmp/
-*.swp
-*.swo
-.*.swp
-.*.swo
 
 # Logs (prevent log file inclusion)
-*.log
+# Note: *.log already covered in Testing section
 logs/
 log/
 
@@ -174,7 +172,7 @@ anchore-reports/
 snyk-report.json
 
 # Miscellaneous
-.editorconfig
+# Note: .editorconfig already covered in Development tools section
 .mailmap
 .gitmodules
 CODEOWNERS

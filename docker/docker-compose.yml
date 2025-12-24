@@ -202,8 +202,8 @@ networks:
     #   encrypted: "true"
     ipam:
       config:
-        # Use private subnet
-        - subnet: 172.28.0.0/16
+        # Use private subnet (/24 is sufficient for single-service networks)
+        - subnet: 172.28.0.0/24
 
 # ============================================================================
 # SECURITY DEPLOYMENT GUIDE
