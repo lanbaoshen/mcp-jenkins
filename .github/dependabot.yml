@@ -36,6 +36,7 @@ updates:
       - "docker"
     reviewers:
       - "lanbaoshen"
+    open-pull-requests-limit: 5
     groups:
       # Group minor/patch updates; major updates reviewed separately
       docker-minor:
@@ -58,6 +59,7 @@ updates:
       - "ci"
     reviewers:
       - "lanbaoshen"
+    open-pull-requests-limit: 5
     groups:
       # Group minor/patch updates; major updates reviewed separately
       github-actions:
