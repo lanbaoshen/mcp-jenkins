@@ -10,10 +10,11 @@ services:
     container_name: mcp-jenkins
 
     # SECURITY: Read-only root filesystem with temporary writable directories
+    # /tmp is required for Python tempfile operations
+    # /app/.cache can be removed if testing confirms no runtime cache is needed
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,nodev,size=64m
-      - /app/.cache:noexec,nosuid,nodev,size=32m
 
     # SECURITY: Prevent privilege escalation
     security_opt:
@@ -81,6 +82,8 @@ services:
     restart: unless-stopped
 
     # Health check configuration (matches Dockerfile healthcheck)
+    # NOTE: This only verifies the module loads, not Jenkins connectivity.
+    # For SSE/HTTP mode, consider implementing a /health endpoint in the app.
     healthcheck:
       test: ["CMD-SHELL", "python3 -c 'import mcp_jenkins' || exit 1"]
       interval: 30s
@@ -94,7 +97,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        labels: "service,environment"
 
     # Container labels for monitoring and organization
     # NOTE: Update VERSION default when releasing new versions

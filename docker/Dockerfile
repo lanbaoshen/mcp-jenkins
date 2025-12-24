@@ -236,7 +236,7 @@ FROM production
 # docker run \
 #   --read-only \                              # Read-only root filesystem
 #   --tmpfs /tmp:noexec,nosuid,nodev \        # Writable tmp without exec
-#   --tmpfs /app/.cache:noexec,nosuid,nodev \ # Python cache if needed
+#   # --tmpfs /app/.cache:noexec,nosuid,nodev \ # Only if runtime cache needed
 #   --security-opt=no-new-privileges:true \   # Prevent privilege escalation
 #   --cap-drop=ALL \                          # Drop all capabilities
 #   --user=10001:10001 \                      # Explicit non-root user
