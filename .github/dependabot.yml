@@ -51,7 +51,10 @@ updates:
     reviewers:
       - "lanbaoshen"
     groups:
-      # Group all action updates together
+      # Group minor/patch updates; major updates reviewed separately
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"

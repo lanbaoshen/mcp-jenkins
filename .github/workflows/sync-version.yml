@@ -1,5 +1,10 @@
 name: Sync Version
 
+# Prevent concurrent runs to avoid push conflicts
+concurrency:
+  group: sync-version-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   # Run manually before releasing
   workflow_dispatch:
@@ -32,6 +37,10 @@ jobs:
             VERSION="${{ inputs.version }}"
           else
             VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)
+          fi
+          if [ -z "${VERSION}" ]; then
+            echo "ERROR: Failed to extract version from pyproject.toml"
+            exit 1
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Syncing version: ${VERSION}"
