@@ -86,7 +86,7 @@ RUN addgroup -g 10001 appuser && \
 # Pin version for reproducible builds - update periodically
 # Security note: Downloaded over HTTPS, checksum verification via official installer
 # Install to /usr/local/bin so it's available system-wide
-ARG UV_VERSION=0.9.3
+ARG UV_VERSION=0.9.18
 ADD --chmod=755 https://astral.sh/uv/${UV_VERSION}/install.sh /install.sh
 RUN /install.sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
@@ -148,7 +148,8 @@ RUN uv sync --frozen --no-dev
 # This prevents shell-based attacks if the container is compromised
 # The application runs as a Python process and doesn't need shell access
 # Note: Healthcheck and entrypoint still work as they use Python interpreter directly
-RUN sed -i 's|^appuser:.*|appuser:x:10001:10001::/app:/sbin/nologin|' /etc/passwd
+# Using sed because Alpine's usermod requires the shadow package (adds ~2MB)
+RUN sed -i 's|^\(appuser:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*$|\1/sbin/nologin|' /etc/passwd
 
 # Switch to non-root user for security
 # All subsequent operations and runtime will execute as this user

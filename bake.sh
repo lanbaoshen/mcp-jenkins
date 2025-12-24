@@ -222,8 +222,11 @@ BAKE_CMD+=" --progress ${PROGRESS}"
 
 # Export variables as environment variables for HCL to read
 # Docker Bake HCL files automatically read from environment variables
-for var in "${BUILD_VARS[@]}"; do
-    export "${var}"
+# Each entry is in NAME=VALUE format, exported explicitly
+for entry in "${BUILD_VARS[@]}"; do
+    name="${entry%%=*}"
+    value="${entry#*=}"
+    export "${name}=${value}"
 done
 
 BAKE_CMD+=" ${TARGET}"
