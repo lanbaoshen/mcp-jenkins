@@ -36,7 +36,7 @@ target "docker-metadata-action" {
 
 target "mcp-jenkins" {
   inherits = ["docker-metadata-action"]
-  context = ".."
+  context = "."
   dockerfile = "docker/Dockerfile"
   target = "production"
   platforms = PLATFORM
@@ -62,6 +62,7 @@ target "mcp-jenkins-dev" {
 
 target "mcp-jenkins-multi" {
   inherits = ["mcp-jenkins"]
+  # Note: Limited to amd64/arm64 because uv doesn't provide binaries for other architectures
   platforms = ["linux/amd64", "linux/arm64"]
 }
 

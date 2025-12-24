@@ -217,13 +217,13 @@ fi
 
 # Build the command
 BAKE_CMD="docker buildx bake"
-BAKE_CMD+=" --allow=fs.read=.."
 BAKE_CMD+=" --file ${BAKE_FILE}"
 BAKE_CMD+=" --progress ${PROGRESS}"
 
-# Add variables
+# Export variables as environment variables for HCL to read
+# Docker Bake HCL files automatically read from environment variables
 for var in "${BUILD_VARS[@]}"; do
-    BAKE_CMD+=" --set *.args.${var}"
+    export "${var}"
 done
 
 BAKE_CMD+=" ${TARGET}"
@@ -243,7 +243,7 @@ if [[ "${PRINT_ONLY}" == "true" ]]; then
     echo "${BAKE_CMD}"
     echo ""
     log_info "Bake configuration preview:"
-    docker buildx bake --allow=fs.read=.. --file "${BAKE_FILE}" --print "${TARGET}" 2>/dev/null || log_warning "Could not print bake configuration"
+    docker buildx bake --file "${BAKE_FILE}" --print "${TARGET}" 2>/dev/null || log_warning "Could not print bake configuration"
     exit 0
 fi
 

@@ -1,29 +1,54 @@
-# Git
+# =============================================================================
+# Security-focused Docker ignore file
+# Prevents sensitive files and unnecessary data from being copied into images
+# =============================================================================
+
+# CRITICAL: Secrets and credentials
+# Never include these in Docker images as they persist in layers
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+credentials.json
+secrets/
+.secrets/
+config.yml
+config.yaml
+*.secret
+*.credentials
+
+# SSH and GPG keys
+.ssh/
+.gnupg/
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+
+# Git (version control not needed in image)
 .git
 .gitignore
+.gitattributes
+.github/
 
-# Python
-__pycache__
+# Python cache and compiled files
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env
+*.so
+*.egg
+*.egg-info/
+.eggs/
 pip-log.txt
 pip-delete-this-directory.txt
-.tox
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.mypy_cache
-.pytest_cache
-.hypothesis
 
-# Virtual environments
+# Virtual environments (not needed in container)
 .env
 .venv
 env/
@@ -31,15 +56,37 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.python-version
 
-# IDE
+# Testing (not needed in production image)
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+tests/
+test/
+
+# IDE and editor files (developer tools)
 .vscode/
 .idea/
 *.swp
 *.swo
+*.swn
 *~
+.project
+.pydevproject
+.settings/
 
-# OS
+# OS-specific files
 .DS_Store
 .DS_Store?
 ._*
@@ -47,42 +94,87 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Build artifacts
+# Build artifacts (generated during build)
 build/
 dist/
-*.egg-info/
+*.spec
 .eggs/
+wheels/
+share/python-wheels/
 
-# Documentation
-docs/_build/
+# Documentation (not needed at runtime)
+docs/
+doc/
+CHANGELOG.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+# Note: README.md and LICENSE are needed for package metadata - do not exclude
 
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-tests/
-
-# Development
-.pre-commit-config.yaml
-*.md
-!README.md
-
-# Docker
+# Docker files (don't recurse Docker configs)
 Dockerfile*
 docker-compose*.yml
+docker-compose*.yaml
 docker-bake*.hcl
 docker-bake*.json
 .dockerignore
 bake.sh
+docker/
 
-# CI/CD
+# CI/CD configurations (not needed in container)
 .github/
 .gitlab-ci.yml
 .travis.yml
+.circleci/
+.jenkins/
+Jenkinsfile
+azure-pipelines.yml
+.drone.yml
 
-# Misc
+# Development tools
+.pre-commit-config.yaml
+.editorconfig
+.eslintrc*
+.prettierrc*
+.flake8
+.pylintrc
+setup.cfg
+# Note: pyproject.toml and uv.lock are needed for uv sync - do not exclude
+
+# Temporary and backup files
 *.bak
 *.tmp
+*.temp
 temp/
+tmp/
+*.swp
+*.swo
+.*.swp
+.*.swo
+
+# Logs (prevent log file inclusion)
+*.log
+logs/
+log/
+
+# Database files (should never be in image)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment-specific configs
+.envrc
+.direnv/
+
+# Security scanning results
+trivy-results.json
+.trivyignore
+anchore-reports/
+snyk-report.json
+
+# Miscellaneous
+.editorconfig
+.mailmap
+.gitmodules
+CODEOWNERS
