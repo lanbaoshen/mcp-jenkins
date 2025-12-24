@@ -18,6 +18,7 @@ secrets/
 .secrets/
 config.yml
 config.yaml
+# Note: Config files excluded for security; provide runtime config via volume mounts or secrets
 *.secret
 *.credentials
 
