@@ -1,24 +1,74 @@
 services:
+  # Production service with security hardening
   mcp-jenkins:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      # Explicitly target production stage
+      target: production
     image: local/mcp-jenkins:latest
     container_name: mcp-jenkins
-    environment:
-      JENKINS_URL: "${JENKINS_URL:-https://jenkins.example.com}"
-      JENKINS_USERNAME: "${JENKINS_USERNAME:-admin}"
-      JENKINS_PASSWORD: "${JENKINS_PASSWORD:-password}"
-    # Uncomment ports for SSE mode
+
+    # SECURITY: Read-only root filesystem with temporary writable directories
+    # /tmp is required for Python tempfile operations
+    # /app/.cache can be removed if testing confirms no runtime cache is needed
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev,size=64m
+
+    # SECURITY: Prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+
+    # SECURITY: Drop all capabilities (container doesn't need any special privileges)
+    cap_drop:
+      - ALL
+
+    # SECURITY: Resource limits to prevent DoS
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+          pids: 100
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # SECURITY: Explicitly set non-root user (redundant but explicit)
+    user: "10001:10001"
+
+    # CREDENTIALS: Currently uses environment variables passed via command args
+    # WARNING: Credentials visible in 'docker inspect' and process listings
+    # For improved security, consider:
+    # - Using a reverse proxy with authentication
+    # - Implementing Docker secrets support in the application
+    # - Using credential files mounted as volumes
+    #
+    # Example with environment variables (commented for reference):
+    # environment:
+    #   JENKINS_URL: "${JENKINS_URL:-https://jenkins.example.com}"
+    #   JENKINS_USERNAME: "${JENKINS_USERNAME:-admin}"
+    #   JENKINS_PASSWORD: "${JENKINS_PASSWORD:-password}"
+
+    # Network isolation (create dedicated network below)
+    networks:
+      - jenkins-network
+
+    # Uncomment ports for SSE/HTTP mode
     # ports:
-    #   - "9887:9887"
-    # Example command for stdio mode (modify as needed)
+    #   - "127.0.0.1:9887:9887"  # Bind to localhost only for additional security
+
+    # Command for stdio mode with secrets
+    # Note: This example shows environment variable usage
+    # For production, modify application to read from /run/secrets/*
     command: [
       "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
       "--jenkins-username", "${JENKINS_USERNAME:-admin}",
       "--jenkins-password", "${JENKINS_PASSWORD:-password}",
       "--transport", "${TRANSPORT:-stdio}"
     ]
+
     # Uncomment for SSE mode
     # command: [
     #   "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
@@ -27,12 +77,35 @@ services:
     #   "--transport", "sse",
     #   "--port", "9887"
     # ]
-    restart: unless-stopped
-    # Uncomment to mount config files
-    # volumes:
-    #   - ./config:/app/config:ro
 
-  # Example: Run in development mode with live code reload
+    # Restart policy for production reliability
+    restart: unless-stopped
+
+    # Health check configuration (matches Dockerfile healthcheck)
+    # NOTE: This only verifies the module loads, not Jenkins connectivity.
+    # For SSE/HTTP mode, consider implementing a /health endpoint in the app.
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import mcp_jenkins' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+    # Logging configuration (prevents unbounded log growth)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Container labels for monitoring and organization
+    # NOTE: Update VERSION default when releasing new versions
+    labels:
+      - "com.mcp-jenkins.service=production"
+      - "com.mcp-jenkins.security=hardened"
+      - "com.mcp-jenkins.version=${VERSION:-0.3.9}"
+
+  # Development service (less security restrictions for debugging)
   mcp-jenkins-dev:
     build:
       context: ..
@@ -40,15 +113,22 @@ services:
       target: development
     image: local/mcp-jenkins:dev
     container_name: mcp-jenkins-dev
+
+    # Development can be writable for debugging
+    # read_only: false
+
     environment:
       JENKINS_URL: "${JENKINS_URL:-https://jenkins.example.com}"
       JENKINS_USERNAME: "${JENKINS_USERNAME:-admin}"
       JENKINS_PASSWORD: "${JENKINS_PASSWORD:-password}"
+
     ports:
       - "9887:9887"
+
+    # Mount source code for live development
     volumes:
-      # Mount source code for development
-      - ./src:/app/src
+      - ../src:/app/src:ro  # Read-only even in dev
+
     command: [
       "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
       "--jenkins-username", "${JENKINS_USERNAME:-admin}",
@@ -56,5 +136,104 @@ services:
       "--transport", "sse",
       "--port", "9887"
     ]
+
+    # Development profile (not started by default)
     profiles:
       - development
+
+    networks:
+      - jenkins-network
+
+    # Logging for development
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# Docker Compose File-based Secrets (for future implementation)
+# NOTE: Application code must be modified to read from /run/secrets/* for this to work
+#
+# Setup steps:
+# 1. mkdir -p secrets && chmod 700 secrets
+# 2. echo "https://jenkins.example.com" > secrets/jenkins_url.txt
+# 3. echo "admin" > secrets/jenkins_username.txt
+# 4. echo "secure_password" > secrets/jenkins_password.txt
+# 5. chmod 400 secrets/*.txt
+# 6. Uncomment the secrets definitions below
+# 7. Add secrets reference to service (see credentials section above)
+#
+# secrets:
+#   jenkins_url:
+#     file: ./secrets/jenkins_url.txt
+#   jenkins_username:
+#     file: ./secrets/jenkins_username.txt
+#   jenkins_password:
+#     file: ./secrets/jenkins_password.txt
+#
+# For Docker Swarm or Kubernetes, use external secret management instead.
+
+# Network isolation
+# Create a dedicated network instead of using default bridge
+networks:
+  jenkins-network:
+    driver: bridge
+    # Additional security: enable encryption for overlay networks in Swarm
+    # driver: overlay
+    # driver_opts:
+    #   encrypted: "true"
+    ipam:
+      config:
+        # Use private subnet (/24 is sufficient for single-service networks)
+        - subnet: 172.28.0.0/24
+
+# ============================================================================
+# SECURITY DEPLOYMENT GUIDE
+# ============================================================================
+#
+# 1. Current Credential Method (environment variables via command args):
+#    Set JENKINS_URL, JENKINS_USERNAME, JENKINS_PASSWORD environment variables
+#    Note: These are visible in 'docker inspect' - acceptable for development only
+#
+# 2. For Production (requires application code changes):
+#    Implement reading credentials from /run/secrets/* or mounted config files
+#    Then use Docker Compose secrets (see section above) or external secret managers
+#
+# 3. Build and run:
+#    docker-compose build
+#    docker-compose up -d
+#
+# 4. Verify security posture:
+#    docker inspect mcp-jenkins | jq '.[0].HostConfig.SecurityOpt'
+#    docker inspect mcp-jenkins | jq '.[0].HostConfig.ReadonlyRootfs'
+#    docker exec mcp-jenkins whoami  # Should fail (no shell access)
+#
+# 5. Monitor logs:
+#    docker-compose logs -f mcp-jenkins
+#
+# 6. Security scanning:
+#    trivy image local/mcp-jenkins:latest
+#    docker scout cves local/mcp-jenkins:latest
+#
+# 7. Production checklist:
+#    [ ] Secrets are not in environment variables
+#    [ ] Secrets are not in docker-compose.yml
+#    [ ] Secrets files have 400 permissions
+#    [ ] .env is in .gitignore
+#    [ ] Read-only root filesystem enabled
+#    [ ] No new privileges enabled
+#    [ ] Resource limits configured
+#    [ ] Network is isolated
+#    [ ] Logs are aggregated externally
+#    [ ] Container scanning is automated
+#    [ ] TLS is enabled for Jenkins API
+#    [ ] Principle of least privilege applied
+#
+# 8. Kubernetes deployment:
+#    Use Kubernetes Secrets or external secret management (Vault, AWS Secrets)
+#    Apply Pod Security Standards (restricted)
+#    Use Network Policies for egress control
+#    Enable AppArmor or SELinux
+#    Use read-only root filesystem
+#    Drop all capabilities
+# ============================================================================

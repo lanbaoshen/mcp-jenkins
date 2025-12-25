@@ -70,7 +70,7 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 {
     "servers": {
         "jenkins": {
-            "url": "http://localhost:3000/sse",
+            "url": "http://localhost:9887/sse",
             "type": "sse"
         }
     }
@@ -85,7 +85,7 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
             "disabled": false,
             "timeout": 60,
             "type": "streamableHttp",
-            "url": "http://localhost:3000/mcp"
+            "url": "http://localhost:9887/mcp"
         }
     }
 }
@@ -94,10 +94,10 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 3. Run the Jenkins MCP server with the following command:
 ```shell
 uvx mcp-jenkins \
-  --jenkins-url http://localhost:3000 \
+  --jenkins-url https://jenkins.example.com \
   --jenkins-username your_username  \
   --jenkins-password your_password_or_token \
-  --transport sse --port 3000
+  --transport sse --port 9887
 ```
 
 #### line arguments
