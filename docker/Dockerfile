@@ -31,7 +31,7 @@
 # ============================================================================
 # Base stage with runtime dependencies only (no build tools)
 # ============================================================================
-FROM python:3.11-alpine AS base
+FROM python:3.14-alpine AS base
 
 # OCI Image Specification Labels
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
