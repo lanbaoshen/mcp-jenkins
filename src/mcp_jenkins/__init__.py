@@ -1,6 +1,7 @@
 import os
 
 import click
+from mcp.server.transport_security import TransportSecuritySettings
 
 
 @click.command()
@@ -54,6 +55,11 @@ def main(
         mcp.settings.port = port
         mcp.settings.host = host
         mcp.settings.stateless_http = stateless_http
+        # AgentCore Runtime compatibility: Disable Host header validation when stateless_http is enabled
+        if stateless_http:
+            mcp.settings.transport_security = TransportSecuritySettings(
+                enable_dns_rebinding_protection=False
+            )
     mcp.run(transport=transport)
 
 
