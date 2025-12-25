@@ -11,6 +11,8 @@ import click
 @click.option('--read-only', default=False, is_flag=True, help='Whether to run in read-only mode, default is False')
 @click.option('--transport', type=click.Choice(['stdio', 'sse', 'streamable-http']), default='stdio')
 @click.option('--port', default=9887, help='Port to listen on for SSE transport')
+@click.option('--host', default='127.0.0.1', help='Host to bind to for SSE/streamable-http transport')
+@click.option('--stateless-http', default=False, is_flag=True, help='Enable stateless HTTP mode for AgentCore Runtime compatibility')
 @click.option(
     '--tool-alias',
     default='[fn]',
@@ -26,6 +28,8 @@ def main(
     read_only: bool,  # noqa: FBT001
     transport: str,
     port: int,
+    host: str,
+    stateless_http: bool,  # noqa: FBT001
     tool_alias: str,
 ) -> None:
     """
@@ -48,6 +52,8 @@ def main(
 
     if transport in ['sse', 'streamable-http']:
         mcp.settings.port = port
+        mcp.settings.host = host
+        mcp.settings.stateless_http = stateless_http
     mcp.run(transport=transport)
 
 
