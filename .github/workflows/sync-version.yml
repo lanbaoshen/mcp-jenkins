@@ -74,8 +74,8 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: chore: Sync version to ${{ steps.get_version.outputs.version }}
+          commit-message: "chore: Sync version to ${{ steps.get_version.outputs.version }}"
           branch: sync-version-${{ steps.get_version.outputs.version }}
-          title: chore: Sync version to ${{ steps.get_version.outputs.version }}
+          title: "chore: Sync version to ${{ steps.get_version.outputs.version }}"
           body: |
             Automated version sync to ${{ steps.get_version.outputs.version }}.
