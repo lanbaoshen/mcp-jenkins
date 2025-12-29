@@ -6,9 +6,12 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.8.0",
+    "fastmcp>=2.4.0",
     "pydantic>=2.11.1",
     "python-jenkins>=1.8.2",
     "beautifulsoup4>=4.12.2",
+    "starlette>=0.37.1",
+
 ]
 
 [[project.authors]]

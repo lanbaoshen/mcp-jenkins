@@ -1,9 +1,9 @@
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from mcp_jenkins.server import client, mcp
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_all_nodes(ctx: Context) -> list[dict]:
     """
     Get all nodes from Jenkins
@@ -14,7 +14,7 @@ async def get_all_nodes(ctx: Context) -> list[dict]:
     return [node.model_dump(exclude_none=True) for node in client(ctx).node.get_all_nodes()]
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_node_config(ctx: Context, name: str) -> str:
     """
     Get node config from Jenkins

@@ -1,12 +1,12 @@
 from typing import Literal
 
 from jenkins import JenkinsException
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from mcp_jenkins.server import client, mcp
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_running_builds(ctx: Context) -> list[dict]:
     """
     Get all running builds from Jenkins
@@ -17,7 +17,7 @@ async def get_running_builds(ctx: Context) -> list[dict]:
     return [build.model_dump(exclude_none=True) for build in client(ctx).build.get_running_builds()]
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_build_info(ctx: Context, fullname: str, build_number: int | None = None) -> dict:
     """
     Get specific build info from Jenkins
@@ -34,7 +34,7 @@ async def get_build_info(ctx: Context, fullname: str, build_number: int | None =
     return client(ctx).build.get_build_info(fullname, build_number).model_dump(exclude_none=True)
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_build_sourcecode(ctx: Context, fullname: str, build_number: int | None = None) -> str:
     """
     Get the pipeline source code of a specific build in Jenkins
@@ -51,7 +51,7 @@ async def get_build_sourcecode(ctx: Context, fullname: str, build_number: int | 
     return client(ctx).build.get_build_sourcecode(fullname, build_number)
 
 
-@mcp.tool(tag='write')
+@mcp.tool(tags={"jenkins", "write"})
 async def build_job(ctx: Context, fullname: str, parameters: dict = None) -> int:
     """
     Build a job in Jenkins
@@ -66,7 +66,7 @@ async def build_job(ctx: Context, fullname: str, parameters: dict = None) -> int
     return client(ctx).build.build_job(fullname, parameters)
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_build_logs(
     ctx: Context,
     fullname: str,
@@ -92,7 +92,7 @@ async def get_build_logs(
     return client(ctx).build.get_build_logs(fullname, build_number, pattern, limit, seq)
 
 
-@mcp.tool(tag='write')
+@mcp.tool(tags={"jenkins", "write"})
 async def stop_build(ctx: Context, fullname: str, build_number: int) -> None:
     """
     Stop a specific build in Jenkins
@@ -104,7 +104,7 @@ async def stop_build(ctx: Context, fullname: str, build_number: int) -> None:
     return client(ctx).build.stop_build(fullname, build_number)
 
 
-@mcp.tool(tag='read')
+@mcp.tool(tags={"jenkins", "read"})
 async def get_test_results(
     ctx: Context,
     fullname: str,

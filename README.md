@@ -56,6 +56,61 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 #### VSCode Copilot Chat
 1. Create `.vscode` folder with `mcp.json` file in you workspace for local setup or edit `settings.json` trough settings menù.
 2. Insert the following configuration:
+
+**Option 1: Using HTTP Headers (Recommended)**
+
+Pass Jenkins credentials directly via HTTP headers in the mcp.json configuration. This method leverages FastMCP's ASGI middleware to securely extract credentials from HTTP request headers.
+
+- **SSE mode**
+```json
+{
+    "servers": {
+        "jenkins": {
+            "url": "http://localhost:3000/sse",
+            "type": "sse",
+            "headers": {
+                "x-jenkins-url": "https://your-jenkins-server.com",
+                "x-jenkins-username": "your-username",
+                "x-jenkins-password": "your-api-token"
+            }
+        }
+    }
+}
+```
+
+- **Streamable-Http mode (Recommended)**
+```json
+{
+    "servers": {
+        "mcp-jenkins": {
+            "autoApprove": [],
+            "disabled": false,
+            "timeout": 60,
+            "type": "streamableHttp",
+            "url": "http://localhost:3000/mcp",
+            "headers": {
+                "x-jenkins-url": "https://your-jenkins-server.com",
+                "x-jenkins-username": "your-username",
+                "x-jenkins-password": "your-api-token"
+            }
+        }
+    }
+}
+```
+
+Then start the MCP server without credentials (they'll be automatically extracted from headers):
+```shell
+# For SSE transport
+uvx mcp-jenkins --transport sse --port 3000
+
+# For streamable-http transport  
+uvx mcp-jenkins --transport streamable-http --port 3000
+```
+
+**Option 2: Using CLI Arguments (Traditional Method)**
+
+Pass credentials when starting the server:
+
 - SSE mode
 ```json
 {
@@ -67,11 +122,12 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
     }
 }
 ```
+
 - Streamable-Http mode
 ```json
 {
     "servers": {
-        "mcp-jenkins-mcp": {
+        "mcp-jenkins": {
             "autoApprove": [],
             "disabled": false,
             "timeout": 60,
@@ -82,10 +138,19 @@ This will create or edit the ~/.cursor/mcp.json file with your MCP server config
 }
 ```
 
-3. Run the Jenkins MCP server with the following command:
+Start the server (credentials will be read from environment variables):
+```shell
+uvx mcp-jenkins --transport sse --port 3000
+# or
+uvx mcp-jenkins --transport streamable-http --port 3000
+```
+
+**Option 3: Using CLI Arguments (Sets Environment Variables)**
+
+Pass credentials as command-line arguments. These will be set as environment variables for the server process:
 ```shell
 uvx mcp-jenkins \
-  --jenkins-url http://localhost:3000 \
+  --jenkins-url https://your-jenkins-server.com \
   --jenkins-username your_username  \
   --jenkins-password your_password_or_token \
   --transport sse --port 3000
