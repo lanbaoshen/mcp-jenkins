@@ -27,6 +27,15 @@ pip install mcp-jenkins
 npx -y @smithery/cli@latest install @lanbaoshen/mcp-jenkins --client claude
 ```
 
+#### Docker Installation
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/lanbaoshen/mcp-jenkins:latest
+```
+
+
 ### Configuration and Usage
 
 #### Cursor
@@ -116,7 +125,7 @@ Pass credentials when starting the server:
 {
     "servers": {
         "jenkins": {
-            "url": "http://localhost:3000/sse",
+            "url": "http://localhost:9887/sse",
             "type": "sse"
         }
     }
@@ -132,7 +141,7 @@ Pass credentials when starting the server:
             "disabled": false,
             "timeout": 60,
             "type": "streamableHttp",
-            "url": "http://localhost:3000/mcp"
+            "url": "http://localhost:9887/mcp"
         }
     }
 }
@@ -153,7 +162,7 @@ uvx mcp-jenkins \
   --jenkins-url https://your-jenkins-server.com \
   --jenkins-username your_username  \
   --jenkins-password your_password_or_token \
-  --transport sse --port 3000
+  --transport sse --port 9887
 ```
 
 #### line arguments

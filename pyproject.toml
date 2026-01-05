@@ -1,6 +1,6 @@
 [project]
 name = "mcp-jenkins"
-version = "0.3.9"
+version = "0.4.0"
 description = "The Model Context Protocol (MCP) is an open-source implementation that bridges Jenkins with AI language models following Anthropic's MCP specification. This project enables secure, contextual AI interactions with Jenkins tools while maintaining data privacy and security."
 readme = "README.md"
 requires-python = ">=3.10"
