@@ -14,8 +14,8 @@ sys.modules['mcp_jenkins.server.job'] = Mock()
 sys.modules['mcp_jenkins.server.node'] = Mock()
 sys.modules['mcp_jenkins.server.queue_item'] = Mock()
 
-from src.mcp_jenkins import main
-from src.mcp_jenkins.server import JenkinsHeaderMiddleware, client
+from mcp_jenkins import main
+from mcp_jenkins.server import JenkinsHeaderMiddleware, client
 
 
 def test_transport_streamable_http_valid():
