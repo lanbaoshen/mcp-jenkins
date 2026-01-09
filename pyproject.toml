@@ -1,0 +1,69 @@
+[project]
+name = "mcp-jenkins"
+version = "1.0.0.dev0"
+description = "The Model Context Protocol (MCP) is an open-source implementation that bridges Jenkins with AI language models following Anthropic's MCP specification. This project enables secure, contextual AI interactions with Jenkins tools while maintaining data privacy and security."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=2.14.2",
+    "loguru>=0.7.3",
+]
+
+[[project.authors]]
+name = "lanbaoshen"
+email = "lanbaoshen@icloud.com"
+
+[project.scripts]
+mcp-jenkins = "mcp_jenkins:main"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+]
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+]
+
+lint.select = ["E", "F", "B", "W", "I", "N", "UP", "ANN", "S", "BLE", "FBT", "C4", "T10", "EM", "ISC", "ICN"]
+lint.ignore = ["EM102"]
+lint.fixable = ["ALL"]
+lint.unfixable = []
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+lint.isort.known-third-party = ["pydantic"]
+
+format.quote-style = "single"
+format.indent-style = "space"
+format.skip-magic-trailing-comma = false
+format.line-ending = "auto"

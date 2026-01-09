@@ -1,0 +1,35 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+    -   id: end-of-file-fixer
+    -   id: check-ast
+    -   id: check-xml
+    -   id: check-toml
+    -   id: check-yaml
+        args: ["--unsafe"]
+    -   id: pretty-format-json
+        args: ["--autofix", "--indent=4"]
+    -   id: check-json
+    -   id: check-case-conflict
+    -   id: check-added-large-files
+    -   id: debug-statements
+    -   id: check-docstring-first
+
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.13.1
+    hooks:
+    -   id: ruff
+        args: ["--fix"]
+    -   id: ruff-format
+
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        files: 'src/mcp_jenkins/.*.py'

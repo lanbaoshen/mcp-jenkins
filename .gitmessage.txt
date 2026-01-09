@@ -1,0 +1,22 @@
+# Types:
+#   feat: A new feature
+#   fix: A bug fix
+#   docs: Documentation only changes
+#   style: Changes that do not affect the meaning of the code
+#   refactor: A code change that neither fixes a bug nor adds a feature
+#   perf: A code change that improves performance
+#   test: Adding or correcting tests
+#   chore: Other changes that don’t modify src or test files
+
+# Examples:
+# feat(login): Add OAuth2 support
+#
+# Added OAuth2 authentication to the login flow.
+#
+# BREAKING CHANGE: login API now requires OAuth2 token.
+
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
