@@ -64,7 +64,7 @@ lint.fixable = ["ALL"]
 lint.unfixable = []
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 lint.isort.known-third-party = ["pydantic"]
-lint.per-file-ignores."tests/**/*.py" = ["ANN201", "S101"]
+lint.per-file-ignores."tests/**/*.py" = ["ANN201", "S101", "ANN001", "S106"]
 
 format.quote-style = "single"
 format.indent-style = "space"
