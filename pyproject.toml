@@ -20,6 +20,8 @@ mcp-jenkins = "mcp_jenkins:main"
 dev = [
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
 ]
 
 [tool.uv]
@@ -62,6 +64,7 @@ lint.fixable = ["ALL"]
 lint.unfixable = []
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 lint.isort.known-third-party = ["pydantic"]
+lint.per-file-ignores."tests/**/*.py" = ["ANN201", "S101"]
 
 format.quote-style = "single"
 format.indent-style = "space"
