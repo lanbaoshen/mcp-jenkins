@@ -7,6 +7,7 @@ from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
+from mcp_jenkins.model.node import Node
 from mcp_jenkins.model.queue import Queue, QueueItem
 
 
@@ -141,3 +142,35 @@ class Jenkins:
             id: The ID of the queue item to cancel.
         """
         self.request('POST', rest_endpoint.QUEUE_CANCEL_ITEM(id=id))
+
+    def get_node(self, *, name: str, depth: int = 0) -> Node:
+        """Get a specific node by name.
+
+        Args:
+            name: The name of the node.
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            The Node object.
+        """
+        name = '(master)' if name in ('master', 'Built-In Node') else name
+        response = self.request('GET', rest_endpoint.NODE(name=name, depth=depth))
+        return Node.model_validate(response.json())
+
+    def get_nodes(self, *, depth: int = 0) -> list[Node]:
+        """Get a list of nodes connected to the Master
+
+        Returns:
+            A list of Node objects.
+        """
+        response = self.request('GET', rest_endpoint.NODES(depth=depth))
+        return [Node.model_validate(node) for node in response.json()['computer']]
+
+    def get_node_config(self, *, name: str) -> str:
+        """Get the configuration for a node.
+
+        Returns:
+            The node configuration as an XML string.
+        """
+        response = self.request('GET', rest_endpoint.NODE_CONFIG(name=name))
+        return response.text

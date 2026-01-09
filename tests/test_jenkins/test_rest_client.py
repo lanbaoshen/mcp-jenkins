@@ -3,6 +3,7 @@ from pydantic import HttpUrl
 from requests import HTTPError
 
 from mcp_jenkins.jenkins.rest_client import Jenkins
+from mcp_jenkins.model.node import Node, NodeExecutor, NodeExecutorCurrentExecutable
 from mcp_jenkins.model.queue import Queue, QueueItem, QueueItemTask
 
 
@@ -146,3 +147,111 @@ class TestQueue:
         mock_session.request.assert_called_once_with(
             method='POST', url='https://example.com/queue/cancelItem?id=42', headers={'Jenkins-Crumb': 'crumb-value'}
         )
+
+
+class TestNode:
+    def test_get_node(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'displayName': 'node-1',
+                'offline': False,
+                'executors': [
+                    {
+                        'currentExecutable': {
+                            'url': 'https://example.com/job/example-job/1/',
+                            'timestamp': 1767975558000,
+                            'number': 1,
+                            'fullDisplayName': 'Example Job #1',
+                        }
+                    }
+                ],
+            }
+        )
+
+        assert jenkins.get_node(name='node-1') == Node(
+            displayName='node-1',
+            offline=False,
+            executors=[
+                NodeExecutor(
+                    currentExecutable=NodeExecutorCurrentExecutable(
+                        url=HttpUrl('https://example.com/job/example-job/1/'),
+                        timestamp=1767975558000,
+                        number=1,
+                        fullDisplayName='Example Job #1',
+                    )
+                )
+            ],
+        )
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/computer/node-1/api/json?depth=0',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+        )
+
+    def test_get_node_master(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'displayName': 'Built-In Node',
+                'offline': False,
+                'executors': [
+                    {
+                        'currentExecutable': {
+                            'url': 'https://example.com/job/example-job/1/',
+                            'timestamp': 1767975558000,
+                            'number': 1,
+                            'fullDisplayName': 'Example Job #1',
+                        }
+                    }
+                ],
+            }
+        )
+
+        assert jenkins.get_node(name='Built-In Node') == Node(
+            displayName='Built-In Node',
+            offline=False,
+            executors=[
+                NodeExecutor(
+                    currentExecutable=NodeExecutorCurrentExecutable(
+                        url=HttpUrl('https://example.com/job/example-job/1/'),
+                        timestamp=1767975558000,
+                        number=1,
+                        fullDisplayName='Example Job #1',
+                    )
+                )
+            ],
+        )
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/computer/(master)/api/json?depth=0',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+        )
+
+    def test_get_nodes(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'computer': [
+                    {
+                        'displayName': 'node-1',
+                        'offline': False,
+                        'executors': [],
+                    },
+                    {
+                        'displayName': 'Built-In Node',
+                        'offline': True,
+                        'executors': [],
+                    },
+                ]
+            }
+        )
+
+        assert jenkins.get_nodes() == [
+            Node(displayName='node-1', offline=False, executors=[]),
+            Node(displayName='Built-In Node', offline=True, executors=[]),
+        ]
+
+    def test_get_node_config(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(text='<node>config</node>')
+
+        assert jenkins.get_node_config(name='node-1') == '<node>config</node>'
