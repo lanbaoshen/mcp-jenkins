@@ -59,7 +59,7 @@ exclude = [
 ]
 
 lint.select = ["E", "F", "B", "W", "I", "N", "UP", "ANN", "S", "BLE", "FBT", "C4", "T10", "EM", "ISC", "ICN"]
-lint.ignore = ["EM102"]
+lint.ignore = ["EM102", "N815"]
 lint.fixable = ["ALL"]
 lint.unfixable = []
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"

@@ -7,6 +7,7 @@ from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
+from mcp_jenkins.model.queue import Queue, QueueItem
 
 
 class Jenkins:
@@ -107,3 +108,36 @@ class Jenkins:
         name = parts[-1]
         folder = f'job/{"/job/".join(parts[:-1])}/' if len(parts) > 1 else ''
         return folder, name
+
+    def get_queue(self, *, depth: int = 1) -> Queue:
+        """Get queue.
+
+        Args:
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            A list of QueueItem objects.
+        """
+        response = self.request('GET', rest_endpoint.QUEUE(depth=depth))
+        return Queue.model_validate(response.json())
+
+    def get_queue_item(self, *, id: int, depth: int = 0) -> 'QueueItem':
+        """Get a queue item by its ID.
+
+        Args:
+            id: The ID of the queue item.
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            The QueueItem object.
+        """
+        response = self.request('GET', rest_endpoint.QUEUE_ITEM(id=id, depth=depth))
+        return QueueItem.model_validate(response.json())
+
+    def cancel_queue_item(self, *, id: int) -> None:
+        """Cancel a queue item by its ID.
+
+        Args:
+            id: The ID of the queue item to cancel.
+        """
+        self.request('POST', rest_endpoint.QUEUE_CANCEL_ITEM(id=id))
