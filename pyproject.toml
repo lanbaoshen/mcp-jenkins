@@ -5,6 +5,7 @@ description = "The Model Context Protocol (MCP) is an open-source implementation
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "beautifulsoup4>=4.14.3",
     "fastmcp>=2.14.2",
     "loguru>=0.7.3",
 ]

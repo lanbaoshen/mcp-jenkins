@@ -1,12 +1,16 @@
+import re
 from typing import Literal
 
 import requests
+from bs4 import BeautifulSoup
+from loguru import logger
 from pydantic import HttpUrl
 from requests import Response
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
+from mcp_jenkins.model.build import Build, BuildReplay
 from mcp_jenkins.model.node import Node
 from mcp_jenkins.model.queue import Queue, QueueItem
 
@@ -70,8 +74,12 @@ class Jenkins:
                 headers = {}
             headers.update(self.crumb_header)
 
-        response = self._session.request(method=method, url=self.endpoint_url(endpoint), headers=headers)
+        url = self.endpoint_url(endpoint)
+        logger.debug(f'Sending [{method}] request to {url}')
+
+        response = self._session.request(method=method, url=url, headers=headers)
         response.raise_for_status()
+
         return response
 
     @property
@@ -160,6 +168,9 @@ class Jenkins:
     def get_nodes(self, *, depth: int = 0) -> list[Node]:
         """Get a list of nodes connected to the Master
 
+        Args:
+            depth: The depth of the information to retrieve.
+
         Returns:
             A list of Node objects.
         """
@@ -169,8 +180,105 @@ class Jenkins:
     def get_node_config(self, *, name: str) -> str:
         """Get the configuration for a node.
 
+        Args:
+            name: The name of the node.
+
         Returns:
             The node configuration as an XML string.
         """
         response = self.request('GET', rest_endpoint.NODE_CONFIG(name=name))
         return response.text
+
+    def get_build(self, *, fullname: str, number: int, depth: int = 0) -> Build:
+        """Get build by fullname and number.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            The Build object.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request('GET', rest_endpoint.BUILD(folder=folder, name=name, number=number, depth=depth))
+        return Build.model_validate(response.json())
+
+    def get_build_console_output(self, *, fullname: str, number: int) -> str:
+        """Get the console output of a specific build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+
+        Returns:
+            The console output as a string.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request('GET', rest_endpoint.BUILD_CONSOLE_OUTPUT(folder=folder, name=name, number=number))
+        return response.text
+
+    def stop_build(self, *, fullname: str, number: int) -> None:
+        """Stop a running Jenkins build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+        """
+        folder, name = self._parse_fullname(fullname)
+        self.request('POST', rest_endpoint.BUILD_STOP(folder=folder, name=name, number=number))
+
+    def get_build_replay(self, *, fullname: str, number: int) -> BuildReplay:
+        """Get the build replay of a specific build.
+
+        If you want to get the pipeline source code of a specific build in Jenkins, you can use this method.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+
+        Returns:
+            The build replay object containing the pipeline scripts.
+        """
+
+        folder, name = self._parse_fullname(fullname)
+        response = self.request('GET', rest_endpoint.BUILD_REPLAY(folder=folder, name=name, number=number))
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        scripts = [textarea.text for textarea in soup.find_all('textarea', {'name': re.compile(r'_\..*Script.*')})]
+        return BuildReplay(scripts=scripts)
+
+    def get_build_test_report(self, *, fullname: str, number: int, depth: int = 0) -> dict:
+        """Get the test report of a specific build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            A dictionary representing the test report.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request(
+            'GET', rest_endpoint.BUILD_TEST_REPORT(folder=folder, name=name, number=number, depth=depth)
+        )
+        return response.json()
+
+    def get_running_builds(self) -> list[Build]:
+        """Get all running builds across all nodes.
+
+        The build obtained through this method only includes the number, url and timestamp.
+
+        Returns:
+            A list of Build objects representing the running builds.
+        """
+        builds = []
+
+        for node in self.get_nodes(depth=2):
+            for executor in node.executors:
+                if executor.currentExecutable and executor.currentExecutable.number:
+                    builds.append(Build.model_validate(executor.currentExecutable.model_dump(mode='json')))
+
+        return builds

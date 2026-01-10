@@ -3,6 +3,7 @@ from pydantic import HttpUrl
 from requests import HTTPError
 
 from mcp_jenkins.jenkins.rest_client import Jenkins
+from mcp_jenkins.model.build import Build, BuildReplay
 from mcp_jenkins.model.node import Node, NodeExecutor, NodeExecutorCurrentExecutable
 from mcp_jenkins.model.queue import Queue, QueueItem, QueueItemTask
 
@@ -255,3 +256,140 @@ class TestNode:
         mock_session.request.return_value = mocker.Mock(text='<node>config</node>')
 
         assert jenkins.get_node_config(name='node-1') == '<node>config</node>'
+
+
+class TestBuild:
+    def test_get_build(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'number': 2,
+                'url': 'https://example.com/job/example-job/2/',
+                'timestamp': 1767975558000,
+                'duration': 120000,
+                'estimatedDuration': 130000,
+                'building': False,
+                'result': 'SUCCESS',
+                'nextBuild': None,
+                'previousBuild': {
+                    'number': 1,
+                    'url': 'https://example.com/job/example-job/1/',
+                },
+            }
+        )
+
+        assert jenkins.get_build(fullname='example-job', number=1) == Build(
+            number=2,
+            url='https://example.com/job/example-job/2/',
+            timestamp=1767975558000,
+            duration=120000,
+            estimatedDuration=130000,
+            building=False,
+            result='SUCCESS',
+            nextBuild=None,
+            previousBuild=Build(
+                number=1,
+                url='https://example.com/job/example-job/1/',
+            ),
+        )
+
+    def test_get_build_console_output(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(text='Console output here')
+
+        assert jenkins.get_build_console_output(fullname='example-job', number=1) == 'Console output here'
+
+    def test_stop_build(self, jenkins, mock_session):
+        assert jenkins.stop_build(fullname='example-job', number=42) is None
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/example-job/42/stop',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+        )
+
+    def test_get_build_replay(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            text=(
+                '<textarea name="_.mainScript" checkMethod="post">main script code here</textarea>'
+                '<textarea name="_.additionalScripts" checkMethod="post">additional script code here</textarea>'
+                '<body>Foo</body>'
+            )
+        )
+
+        assert jenkins.get_build_replay(fullname='example-job', number=1) == BuildReplay(
+            scripts=['main script code here', 'additional script code here']
+        )
+
+    def test_get_build_test_report(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'suites': [
+                    {
+                        'name': 'Example Suite',
+                        'cases': [
+                            {
+                                'name': 'test_case_1',
+                                'className': 'ExampleTest',
+                                'status': 'PASSED',
+                            },
+                            {
+                                'name': 'test_case_2',
+                                'className': 'ExampleTest',
+                                'status': 'FAILED',
+                                'errorDetails': 'AssertionError: expected X but got Y',
+                            },
+                        ],
+                    }
+                ]
+            }
+        )
+
+        assert jenkins.get_build_test_report(fullname='example-job', number=1) == {
+            'suites': [
+                {
+                    'name': 'Example Suite',
+                    'cases': [
+                        {
+                            'name': 'test_case_1',
+                            'className': 'ExampleTest',
+                            'status': 'PASSED',
+                        },
+                        {
+                            'name': 'test_case_2',
+                            'className': 'ExampleTest',
+                            'status': 'FAILED',
+                            'errorDetails': 'AssertionError: expected X but got Y',
+                        },
+                    ],
+                }
+            ]
+        }
+
+    def test_get_running_builds(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'computer': [
+                    {
+                        'displayName': 'node-1',
+                        'offline': False,
+                        'executors': [
+                            {
+                                'currentExecutable': {
+                                    'number': 3,
+                                    'url': 'https://example.com/job/example-job/3/',
+                                    'timestamp': 1767975558000,
+                                    'fullDisplayName': 'Example Job #3',
+                                }
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+        assert jenkins.get_running_builds() == [
+            Build(
+                url='https://example.com/job/example-job/3/',
+                number=3,
+                timestamp=1767975558000,
+            )
+        ]
