@@ -39,6 +39,7 @@ class TestRequest:
             headers={
                 'Jenkins-Crumb': 'crumb-value',
             },
+            params=None,
         )
 
     def test_request_without_crumb(self, jenkins, mock_session):
@@ -50,6 +51,7 @@ class TestRequest:
             headers={
                 'Custom-Header': 'value',
             },
+            params=None,
         )
 
 
@@ -147,7 +149,10 @@ class TestQueue:
     def test_cancel_queue_item(self, jenkins, mock_session):
         assert jenkins.cancel_queue_item(id=42) is None
         mock_session.request.assert_called_once_with(
-            method='POST', url='https://example.com/queue/cancelItem?id=42', headers={'Jenkins-Crumb': 'crumb-value'}
+            method='POST',
+            url='https://example.com/queue/cancelItem?id=42',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
         )
 
 
@@ -189,6 +194,7 @@ class TestNode:
             method='GET',
             url='https://example.com/computer/node-1/api/json?depth=0',
             headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
         )
 
     def test_get_node_master(self, jenkins, mock_session, mocker):
@@ -228,6 +234,7 @@ class TestNode:
             method='GET',
             url='https://example.com/computer/(master)/api/json?depth=0',
             headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
         )
 
     def test_get_nodes(self, jenkins, mock_session, mocker):
@@ -305,6 +312,7 @@ class TestBuild:
             method='POST',
             url='https://example.com/job/example-job/42/stop',
             headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
         )
 
     def test_get_build_replay(self, jenkins, mock_session, mocker):
@@ -606,3 +614,20 @@ class TestItem:
                 color='blue',
             )
         ]
+
+    def test_build_item(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            status_code=201, headers={'Location': 'https://example.com/queue/item/123/'}
+        )
+
+        assert (
+            jenkins.build_item(fullname='example-job', build_type='buildWithParameters', params={'param1': 'value1'})
+            == 123
+        )
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/example-job/buildWithParameters',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params={'param1': 'value1'},
+        )

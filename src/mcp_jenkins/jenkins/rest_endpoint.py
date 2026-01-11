@@ -19,6 +19,7 @@ CRUMB = RestEndpoint('crumbIssuer/api/json')
 ITEM = RestEndpoint('{folder}job/{name}/api/json?depth={depth}')
 ITEMS = RestEndpoint('{folder}/api/json?tree={query}')
 ITEM_CONFIG = RestEndpoint('{folder}job/{name}/config.xml')
+ITEM_BUILD = RestEndpoint('{folder}job/{name}/{build_type}')
 
 QUEUE = RestEndpoint('queue/api/json?depth={depth}')
 QUEUE_ITEM = RestEndpoint('queue/item/{id}/api/json?depth={depth}')

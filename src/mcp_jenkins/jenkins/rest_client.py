@@ -56,6 +56,7 @@ class Jenkins:
         *,
         headers: dict = None,
         crumb: bool = True,
+        params: dict = None,
     ) -> Response:
         """Send an HTTP request to a Jenkins REST endpoint.
 
@@ -64,6 +65,7 @@ class Jenkins:
             endpoint: Jenkins REST endpoint path.
             headers: Optional headers to include in the request.
             crumb: Whether to include a CSRF crumb header.
+            params: Optional query parameters to include in the request.
 
         Returns:
             Response: The HTTP response object.
@@ -79,7 +81,7 @@ class Jenkins:
         url = self.endpoint_url(endpoint)
         logger.debug(f'Sending [{method}] request to {url}')
 
-        response = self._session.request(method=method, url=url, headers=headers)
+        response = self._session.request(method=method, url=url, headers=headers, params=params)
         response.raise_for_status()
 
         return response
@@ -384,3 +386,26 @@ class Jenkins:
             result.append(item)
 
         return result
+
+    def build_item(
+        self, *, fullname: str, build_type: Literal['build', 'buildWithParameters'], params: dict | None = None
+    ) -> int:
+        """Trigger a build for a specific item.
+
+        Warnings:
+            If your job is configured with parameters, you must use 'buildWithParameters' as build_type.
+
+        Args:
+            fullname: The fullname of the job.
+            build_type: The type of build to trigger.
+            params: Optional parameters for the build.
+
+        Return:
+            The queue item number of the job.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request(
+            'POST', rest_endpoint.ITEM_BUILD(folder=folder, name=name, build_type=build_type), params=params
+        )
+
+        return int(response.headers.get('Location', None).strip('/').split('/')[-1])
