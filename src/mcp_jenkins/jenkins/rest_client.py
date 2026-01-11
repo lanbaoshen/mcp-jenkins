@@ -1,4 +1,5 @@
 import re
+from functools import reduce
 from typing import Literal
 
 import requests
@@ -11,6 +12,7 @@ from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
 from mcp_jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.model.item import FreeStyleProject, ItemType, Job, serialize_item
 from mcp_jenkins.model.node import Node
 from mcp_jenkins.model.queue import Queue, QueueItem
 
@@ -282,3 +284,103 @@ class Jenkins:
                     builds.append(Build.model_validate(executor.currentExecutable.model_dump(mode='json')))
 
         return builds
+
+    def get_items(self, *, folder_depth: int | None = None, folder_depth_per_request: int = 10) -> list[ItemType]:
+        """Get items in the Jenkins instance up to a specified folder depth.
+
+        Args:
+            folder_depth: The maximum depth of folders to traverse. If None, traverses all levels.
+            folder_depth_per_request: The depth of folders to request per API call.
+
+        Returns:
+            A list of ItemType objects representing the items.
+        """
+        query = reduce(lambda q, _: f'jobs[url,color,name,{q}]', range(folder_depth_per_request), 'jobs')
+        response = self.request('GET', rest_endpoint.ITEMS(folder='', query=query))
+
+        items = []
+
+        item_stack = [(0, [], response.json()['jobs'])]
+        for level, path, level_items in item_stack:
+            current_items = level_items if isinstance(level_items, list) else [level_items]
+
+            for item in current_items:
+                job_path = path + [item['name']]
+                item.setdefault('fullname', '/'.join(job_path))
+                items.append(serialize_item(item))
+
+                children = item.get('jobs')
+                if isinstance(children, list) and (folder_depth is None or level < folder_depth):
+                    item_stack.append((level + 1, job_path, children))
+
+        return items
+
+    def get_item(self, *, fullname: str, depth: int = 0) -> ItemType:
+        """Get item by its fullname.
+
+        Args:
+            fullname: The full name of the item (e.g., "folder1/folder2/item").
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            The ItemType object representing the item.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request('GET', rest_endpoint.ITEM(folder=folder, name=name, depth=depth))
+        return serialize_item(response.json())
+
+    def get_item_config(self, *, fullname: str) -> str:
+        """Get item configuration by its fullname.
+
+        Args:
+            fullname: The full name of the item (e.g., "folder1/folder2/item").
+
+        Returns:
+            The item configuration as an XML string.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request('GET', rest_endpoint.ITEM_CONFIG(folder=folder, name=name))
+        return response.text
+
+    def query_items(
+        self,
+        *,
+        folder_depth: int | None = None,
+        folder_depth_per_request: int = 10,
+        class_pattern: str | None = None,
+        fullname_pattern: str | None = None,
+        color_pattern: str | None = None,
+    ) -> list['ItemType']:
+        """Query items by specific field patterns.
+
+        Args:
+            folder_depth: The maximum depth of folders to traverse. If None, traverses all levels.
+            folder_depth_per_request: The depth of folders to request per API call.
+            class_pattern: The pattern of the _class.
+            fullname_pattern: The pattern of the fullname.
+            color_pattern: The pattern of the color.
+
+        Returns:
+            A list of ItemType objects matching the specified patterns.
+        """
+        class_re, fullname_re, color_re = (
+            re.compile(pattern) if pattern else None for pattern in (class_pattern, fullname_pattern, color_pattern)
+        )
+
+        items = self.get_items(folder_depth=folder_depth, folder_depth_per_request=folder_depth_per_request)
+
+        result = []
+
+        for item in items:
+            if class_re and not class_re.search(item.class_):
+                continue
+            # fullname may be None for some items
+            if item.fullname is None or (fullname_re and not fullname_re.search(item.fullname)):
+                continue
+            if color_re:
+                # Only Job has color attribute
+                if not isinstance(item, Job | FreeStyleProject) or not color_re.search(item.color):
+                    continue
+            result.append(item)
+
+        return result

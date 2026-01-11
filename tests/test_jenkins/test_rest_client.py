@@ -4,6 +4,7 @@ from requests import HTTPError
 
 from mcp_jenkins.jenkins.rest_client import Jenkins
 from mcp_jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.model.item import Folder, FreeStyleProject, Job, MultiBranchProject
 from mcp_jenkins.model.node import Node, NodeExecutor, NodeExecutorCurrentExecutable
 from mcp_jenkins.model.queue import Queue, QueueItem, QueueItemTask
 
@@ -391,5 +392,217 @@ class TestBuild:
                 url='https://example.com/job/example-job/3/',
                 number=3,
                 timestamp=1767975558000,
+            )
+        ]
+
+
+class TestItem:
+    def test_get_items(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'jobs': [
+                    {
+                        'name': 'example-job',
+                        'url': 'https://example.com/job/example-job/',
+                        '_class': 'hudson.model.WorkflowJob',
+                        'color': 'blue',
+                        'fullName': 'example-job',
+                    },
+                    {
+                        'name': 'example-folder',
+                        'url': 'https://example.com/job/example-folder/',
+                        '_class': 'com.cloudbees.hudson.plugins.folder.Folder',
+                        'fullName': 'example-folder',
+                        'jobs': [
+                            {
+                                'name': 'nested-job',
+                                'url': 'https://example.com/job/example-folder/job/nested-job/',
+                                '_class': 'hudson.model.FreeStyleProject',
+                                'color': 'red',
+                                'fullname': 'example-folder',
+                            },
+                            {
+                                'name': 'nested-multibranch',
+                                'url': 'https://example.com/job/example-folder/job/nested-multibranch',
+                                '_class': 'org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+                                'fullname': 'example-multibranch',
+                                'jobs': [
+                                    {
+                                        'name': 'example-job',
+                                        'url': 'https://example.com/job/example-folder/job/nested-multibranch/job/example-job/',
+                                        '_class': 'hudson.model.WorkflowJob',
+                                        'color': 'blue',
+                                        'fullname': 'example-multibranch/job/example-job',
+                                    }
+                                ],
+                            },
+                        ],
+                    },
+                ]
+            }
+        )
+
+        assert jenkins.get_items() == [
+            Job(
+                class_='hudson.model.WorkflowJob',
+                name='example-job',
+                url='https://example.com/job/example-job/',
+                fullname='example-job',
+                color='blue',
+            ),
+            Folder(
+                class_='com.cloudbees.hudson.plugins.folder.Folder',
+                name='example-folder',
+                url='https://example.com/job/example-folder/',
+                fullname='example-folder',
+                jobs=[
+                    FreeStyleProject(
+                        class_='hudson.model.FreeStyleProject',
+                        name='nested-job',
+                        url='https://example.com/job/example-folder/job/nested-job/',
+                        fullname='example-folder',
+                        color='red',
+                    ),
+                    MultiBranchProject(
+                        class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+                        name='nested-multibranch',
+                        url='https://example.com/job/example-folder/job/nested-multibranch',
+                        fullname='example-multibranch',
+                        jobs=[
+                            Job(
+                                class_='hudson.model.WorkflowJob',
+                                name='example-job',
+                                url='https://example.com/job/example-folder/job/nested-multibranch/job/example-job/',
+                                fullname='example-multibranch/job/example-job',
+                                color='blue',
+                            )
+                        ],
+                    ),
+                ],
+            ),
+            FreeStyleProject(
+                class_='hudson.model.FreeStyleProject',
+                name='nested-job',
+                url='https://example.com/job/example-folder/job/nested-job/',
+                fullname='example-folder',
+                color='red',
+            ),
+            MultiBranchProject(
+                class_='org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject',
+                name='nested-multibranch',
+                url='https://example.com/job/example-folder/job/nested-multibranch',
+                fullname='example-multibranch',
+                jobs=[
+                    Job(
+                        class_='hudson.model.WorkflowJob',
+                        name='example-job',
+                        url='https://example.com/job/example-folder/job/nested-multibranch/job/example-job/',
+                        fullname='example-multibranch/job/example-job',
+                        color='blue',
+                    )
+                ],
+            ),
+            Job(
+                class_='hudson.model.WorkflowJob',
+                name='example-job',
+                url='https://example.com/job/example-folder/job/nested-multibranch/job/example-job/',
+                fullname='example-multibranch/job/example-job',
+                color='blue',
+            ),
+        ]
+
+    def test_get_item(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'name': 'example-folder',
+                'url': 'https://example.com/job/example-folder/',
+                '_class': 'com.cloudbees.hudson.plugins.folder.Folder',
+                'fullName': 'example-folder',
+                'jobs': [
+                    {
+                        'name': 'nested-job',
+                        'url': 'https://example.com/job/example-folder/job/nested-job/',
+                        '_class': 'hudson.model.WorkflowJob',
+                        'color': 'red',
+                        'fullname': 'example-folder/example-job',
+                    }
+                ],
+            }
+        )
+
+        assert jenkins.get_item(fullname='example-folder') == Folder(
+            class_='com.cloudbees.hudson.plugins.folder.Folder',
+            name='example-folder',
+            url='https://example.com/job/example-folder/',
+            fullname='example-folder',
+            jobs=[
+                Job(
+                    class_='hudson.model.WorkflowJob',
+                    name='nested-job',
+                    url='https://example.com/job/example-folder/job/nested-job/',
+                    fullname='example-folder/example-job',
+                    color='red',
+                )
+            ],
+        )
+
+    def test_get_item_config(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(text='<project>config</project>')
+
+        assert jenkins.get_item_config(fullname='example-job') == '<project>config</project>'
+
+    def test_query_items(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'jobs': [
+                    {
+                        'name': 'example-job',
+                        'url': 'https://example.com/job/example-job/',
+                        '_class': 'hudson.model.WorkflowJob',
+                        'color': 'blue',
+                        'fullName': 'example-job',
+                    },
+                    {
+                        'name': 'another-job',
+                        'url': 'https://example.com/job/another-job/',
+                        '_class': 'hudson.model.FreeStyleProject',
+                        'color': 'red',
+                        'fullName': 'another-job',
+                    },
+                ]
+            }
+        )
+
+        assert jenkins.query_items(
+            class_pattern='.*WorkflowJob',
+        ) == [
+            Job(
+                class_='hudson.model.WorkflowJob',
+                name='example-job',
+                url='https://example.com/job/example-job/',
+                fullname='example-job',
+                color='blue',
+            )
+        ]
+
+        assert jenkins.query_items(
+            color_pattern='red',
+        ) == [
+            FreeStyleProject(
+                class_='hudson.model.FreeStyleProject',
+                name='another-job',
+                url='https://example.com/job/another-job/',
+                fullname='another-job',
+                color='red',
+            )
+        ]
+
+        assert jenkins.query_items(fullname_pattern='example') == [
+            Job(
+                class_='hudson.model.WorkflowJob',
+                name='example-job',
+                url='https://example.com/job/example-job/',
+                fullname='example-job',
+                color='blue',
             )
         ]
