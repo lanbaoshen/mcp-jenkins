@@ -11,10 +11,10 @@ from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
-from mcp_jenkins.model.build import Build, BuildReplay
-from mcp_jenkins.model.item import FreeStyleProject, ItemType, Job, serialize_item
-from mcp_jenkins.model.node import Node
-from mcp_jenkins.model.queue import Queue, QueueItem
+from mcp_jenkins.jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.jenkins.model.item import FreeStyleProject, ItemType, Job, serialize_item
+from mcp_jenkins.jenkins.model.node import Node
+from mcp_jenkins.jenkins.model.queue import Queue, QueueItem
 
 
 class Jenkins:

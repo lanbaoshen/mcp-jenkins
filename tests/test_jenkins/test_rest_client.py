@@ -2,11 +2,11 @@ import pytest
 from pydantic import HttpUrl
 from requests import HTTPError
 
+from mcp_jenkins.jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.jenkins.model.item import Folder, FreeStyleProject, Job, MultiBranchProject
+from mcp_jenkins.jenkins.model.node import Node, NodeExecutor, NodeExecutorCurrentExecutable
+from mcp_jenkins.jenkins.model.queue import Queue, QueueItem, QueueItemTask
 from mcp_jenkins.jenkins.rest_client import Jenkins
-from mcp_jenkins.model.build import Build, BuildReplay
-from mcp_jenkins.model.item import Folder, FreeStyleProject, Job, MultiBranchProject
-from mcp_jenkins.model.node import Node, NodeExecutor, NodeExecutorCurrentExecutable
-from mcp_jenkins.model.queue import Queue, QueueItem, QueueItemTask
 
 
 @pytest.fixture(autouse=True)
