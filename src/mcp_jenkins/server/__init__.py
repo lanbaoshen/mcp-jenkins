@@ -9,7 +9,7 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware as ASGIMiddleware
 
 from mcp_jenkins.core import AuthMiddleware, LifespanContext, lifespan
-from mcp_jenkins.jenkins.rest_client import Jenkins
+from mcp_jenkins.jenkins import Jenkins
 
 __all__ = ['mcp', 'jenkins']
 

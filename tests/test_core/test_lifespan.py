@@ -2,7 +2,7 @@ import pytest
 from pydantic import HttpUrl
 
 from mcp_jenkins.core.lifespan import _jenkins, lifespan
-from mcp_jenkins.jenkins.rest_client import Jenkins
+from mcp_jenkins.jenkins import Jenkins
 
 
 class TestLifespan:

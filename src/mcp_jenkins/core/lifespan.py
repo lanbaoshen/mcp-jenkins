@@ -7,7 +7,7 @@ from fastmcp.server.dependencies import get_http_request
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, HttpUrl
 
-from mcp_jenkins.jenkins.rest_client import Jenkins
+from mcp_jenkins.jenkins import Jenkins
 
 
 class LifespanContext(BaseModel):
