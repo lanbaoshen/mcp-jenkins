@@ -9,7 +9,7 @@ async def get_all_queue_items(ctx: Context) -> list[dict]:
     """Get all items in Jenkins queue
 
     Returns:
-        lA list of all items in the Jenkins queue
+        A list of all items in the Jenkins queue
     """
     return [item.model_dump(exclude_none=True, exclude={'task'}) for item in jenkins(ctx).get_queue().items]
 

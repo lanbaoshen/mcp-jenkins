@@ -1,6 +1,8 @@
-from typing import Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from mcp_jenkins.jenkins.model.build import Build
 
 ItemType = Union['Folder', 'MultiBranchProject', 'FreeStyleProject', 'Job', 'UnknownItem']
 
@@ -16,10 +18,12 @@ class _ItemBase(BaseModel):
 
 class Job(_ItemBase):
     color: str
+    lastBuild: Optional['Build'] = None
 
 
 class FreeStyleProject(_ItemBase):
     color: str
+    lastBuild: Optional['Build'] = None
 
 
 class Folder(_ItemBase):
@@ -28,6 +32,7 @@ class Folder(_ItemBase):
 
 class MultiBranchProject(_ItemBase):
     jobs: list['ItemType']
+    lastBuild: Optional['Build'] = None
 
 
 class UnknownItem(_ItemBase):
