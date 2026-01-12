@@ -39,7 +39,7 @@ class JenkinsMCP(FastMCP[LifespanContext]):
                 logger.debug(f'Excluding tool [{registered_name}] due to read-only mode')
                 continue
 
-            if jenkins_lifespan_context.tool_regex and not re.match(
+            if jenkins_lifespan_context.tool_regex and not re.search(
                 jenkins_lifespan_context.tool_regex, registered_name
             ):
                 logger.debug(f'Excluding tool [{registered_name}] due to tool_regex filter')
@@ -70,4 +70,4 @@ mcp = JenkinsMCP('mcp-jenkins', lifespan=lifespan)
 
 # Import tool modules to register them with the MCP server
 # This must happen after mcp is created so the @mcp.tool() decorators can reference it
-from mcp_jenkins.server import build, node, queue  # noqa: F401, E402
+from mcp_jenkins.server import build, item, node, queue  # noqa: F401, E402
