@@ -1,11 +1,11 @@
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 
 class Build(BaseModel):
     number: int
-    url: HttpUrl
+    url: str
 
     timestamp: int = None
     duration: int = None

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 
 class Queue(BaseModel):
@@ -9,7 +9,7 @@ class Queue(BaseModel):
 class QueueItem(BaseModel):
     id: int
     inQueueSince: int
-    url: HttpUrl
+    url: str
     why: str | None
 
     task: 'QueueItemTask'
@@ -18,4 +18,4 @@ class QueueItem(BaseModel):
 class QueueItemTask(BaseModel):
     fullDisplayName: str = None
     name: str = None
-    url: HttpUrl = None
+    url: str = None

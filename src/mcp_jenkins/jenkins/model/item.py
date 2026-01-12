@@ -1,6 +1,6 @@
 from typing import Union
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field
 
 ItemType = Union['Folder', 'MultiBranchProject', 'FreeStyleProject', 'Job', 'UnknownItem']
 
@@ -10,7 +10,7 @@ class _ItemBase(BaseModel):
 
     class_: str = Field(..., alias='_class')
     name: str
-    url: HttpUrl
+    url: str
     fullname: str = Field(default=None, alias='fullName')
 
 

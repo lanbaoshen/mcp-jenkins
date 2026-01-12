@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 
 class Node(BaseModel):
@@ -15,7 +15,7 @@ class NodeExecutor(BaseModel):
 
 
 class NodeExecutorCurrentExecutable(BaseModel):
-    url: HttpUrl = None
+    url: str = None
     timestamp: int = None
     number: int = None
     fullDisplayName: str = None

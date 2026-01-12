@@ -181,7 +181,7 @@ class TestNode:
             executors=[
                 NodeExecutor(
                     currentExecutable=NodeExecutorCurrentExecutable(
-                        url=HttpUrl('https://example.com/job/example-job/1/'),
+                        url='https://example.com/job/example-job/1/',
                         timestamp=1767975558000,
                         number=1,
                         fullDisplayName='Example Job #1',
@@ -221,7 +221,7 @@ class TestNode:
             executors=[
                 NodeExecutor(
                     currentExecutable=NodeExecutorCurrentExecutable(
-                        url=HttpUrl('https://example.com/job/example-job/1/'),
+                        url='https://example.com/job/example-job/1/',
                         timestamp=1767975558000,
                         number=1,
                         fullDisplayName='Example Job #1',
