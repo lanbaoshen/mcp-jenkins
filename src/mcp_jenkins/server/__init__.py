@@ -1,7 +1,7 @@
 import re
 from typing import Any, Literal
 
-from fastmcp import Context, FastMCP
+from fastmcp import FastMCP
 from fastmcp.tools import Tool as FastMCPTool
 from loguru import logger
 from mcp.types import Tool as MCPTool
@@ -9,12 +9,11 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware as ASGIMiddleware
 
 from mcp_jenkins.core import AuthMiddleware, LifespanContext, lifespan
-from mcp_jenkins.jenkins import Jenkins
 
-__all__ = ['mcp', 'jenkins']
+__all__ = ['mcp']
 
 
-class JenkinsMCP(FastMCP):
+class JenkinsMCP(FastMCP[LifespanContext]):
     async def _list_tools_mcp(self) -> list[MCPTool]:
         """List available tools, filtering based on lifespan context (e.g. read-only mode)
 
@@ -68,11 +67,6 @@ class JenkinsMCP(FastMCP):
 
 
 mcp = JenkinsMCP('mcp-jenkins', lifespan=lifespan)
-
-
-def jenkins(ctx: Context) -> 'Jenkins':
-    return ctx.request_context.lifespan_context.jenkins
-
 
 # Import tool modules to register them with the MCP server
 # This must happen after mcp is created so the @mcp.tool() decorators can reference it

@@ -2,7 +2,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from fastmcp.server.dependencies import get_http_request
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, HttpUrl
@@ -16,7 +16,7 @@ class LifespanContext(BaseModel):
     read_only: bool = False
     tool_regex: str = ''
 
-    jenkins: Jenkins
+    jenkins: Jenkins | None = None
 
 
 @asynccontextmanager
@@ -24,10 +24,13 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
     read_only = os.getenv('read_only', 'false').lower() == 'true'
     tool_regex = os.getenv('tool_regex', '')
 
-    yield LifespanContext(read_only=read_only, tool_regex=tool_regex, jenkins=_jenkins())
+    yield LifespanContext(read_only=read_only, tool_regex=tool_regex)
 
 
-def _jenkins() -> Jenkins:
+def jenkins(ctx: Context) -> Jenkins:
+    if ctx.request_context.lifespan_context.jenkins is not None:
+        return ctx.request_context.lifespan_context.jenkins
+
     jenkins_url = jenkins_username = jenkins_password = None
 
     try:
@@ -57,7 +60,7 @@ def _jenkins() -> Jenkins:
     if not all((jenkins_url, jenkins_username, jenkins_password)):
         msg = (
             'Jenkins authentication details are missing. '
-            'Please provide them via X-Jenkins-* headers '
+            'Please provide them via x-jenkins-* headers '
             'or CLI arguments (--jenkins-url, --jenkins-username, --jenkins-password).'
         )
         raise ValueError(msg)
@@ -67,10 +70,12 @@ def _jenkins() -> Jenkins:
         f'{jenkins_url}, username: {jenkins_username}, timeout: {jenkins_timeout}, verify_ssl: {jenkins_verify_ssl}'
     )
 
-    return Jenkins(
+    ctx.request_context.lifespan_context.jenkins = Jenkins(
         url=HttpUrl(jenkins_url),
         username=jenkins_username,
         password=jenkins_password,
         timeout=jenkins_timeout,
         verify_ssl=jenkins_verify_ssl,
     )
+
+    return ctx.request_context.lifespan_context.jenkins

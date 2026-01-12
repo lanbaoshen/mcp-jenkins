@@ -1,7 +1,7 @@
 import pytest
 from pydantic import HttpUrl
 
-from mcp_jenkins.core.lifespan import _jenkins, lifespan
+from mcp_jenkins.core.lifespan import jenkins, lifespan
 from mcp_jenkins.jenkins import Jenkins
 
 
@@ -9,7 +9,7 @@ class TestLifespan:
     @pytest.fixture(autouse=True, scope='class')
     def mock_jenkins(self, class_mocker):
         class_mocker.patch(
-            'mcp_jenkins.core.lifespan._jenkins',
+            'mcp_jenkins.core.lifespan.jenkins',
             return_value=Jenkins(
                 url=HttpUrl('https://jenkins.example.com'),
                 username='username',
@@ -48,10 +48,14 @@ class TestJenkins:
 
         return mocker.patch('mcp_jenkins.core.lifespan.os', mocker.Mock(getenv=getenv))
 
-    def test_runtime_error(self, mock_jenkins, mock_get_http_request, mock_os, mocker):
+    @pytest.fixture
+    def mock_ctx(self, mocker):
+        return mocker.Mock(request_context=mocker.Mock(lifespan_context=mocker.Mock(jenkins=None)))
+
+    def test_runtime_error(self, mock_jenkins, mock_get_http_request, mock_os, mock_ctx):
         mock_get_http_request.side_effect = RuntimeError('Not available http request')
 
-        _jenkins()
+        jenkins(mock_ctx)
 
         mock_jenkins.assert_called_once_with(
             url=HttpUrl('https://jenkins.example.com'),
@@ -61,10 +65,10 @@ class TestJenkins:
             verify_ssl=True,
         )
 
-    def test_exception(self, mock_jenkins, mock_get_http_request, mock_os, mocker):
+    def test_exception(self, mock_jenkins, mock_get_http_request, mock_os, mock_ctx):
         mock_get_http_request.side_effect = Exception('Some other error')
 
-        _jenkins()
+        jenkins(mock_ctx)
 
         mock_jenkins.assert_called_once_with(
             url=HttpUrl('https://jenkins.example.com'),
@@ -74,7 +78,7 @@ class TestJenkins:
             verify_ssl=True,
         )
 
-    def test_retrieves_from_request_state(self, mock_jenkins, mock_get_http_request, mock_os, mocker):
+    def test_retrieves_from_request_state(self, mock_jenkins, mock_get_http_request, mock_os, mock_ctx, mocker):
         mock_get_http_request.return_value = mocker.Mock(
             state=mocker.Mock(
                 jenkins_url='https://jenkins.fromrstate.com',
@@ -83,7 +87,7 @@ class TestJenkins:
             )
         )
 
-        _jenkins()
+        jenkins(mock_ctx)
 
         mock_jenkins.assert_called_once_with(
             url=HttpUrl('https://jenkins.fromrstate.com'),
@@ -93,7 +97,7 @@ class TestJenkins:
             verify_ssl=True,
         )
 
-    def test_missing_auth(self, mock_get_http_request, mocker):
+    def test_missing_auth(self, mock_get_http_request, mocker, mock_ctx):
         def getenv(key: str, default=None):
             env = {
                 'jenkins_url': None,
@@ -108,4 +112,13 @@ class TestJenkins:
         mocker.patch('mcp_jenkins.core.lifespan.os', mocker.Mock(getenv=getenv))
 
         with pytest.raises(ValueError):
-            _jenkins()
+            jenkins(mock_ctx)
+
+    def test_ctx_jenkins_exists(self, mock_jenkins, mock_get_http_request, mock_os, mock_ctx, mocker):
+        existing_jenkins = mocker.Mock()
+
+        mock_ctx.request_context.lifespan_context.jenkins = existing_jenkins
+        result = jenkins(mock_ctx)
+
+        assert result == existing_jenkins
+        mock_jenkins.assert_not_called()

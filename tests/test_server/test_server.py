@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_jenkins.server import JenkinsMCP, jenkins
+from mcp_jenkins.server import JenkinsMCP
 
 
 class TestJenkinsMCP:
@@ -127,11 +127,3 @@ class TestJenkinsMCP:
         mocker.patch('mcp_jenkins.server.ASGIMiddleware', return_value=mock_wm)
 
         assert jm.http_app(path='/mcp', middleware=[mock_wm], transport='http').user_middleware.count(mock_wm) == 2
-
-
-def test_jenkins(mocker):
-    mock_jenkins = mocker.Mock()
-    assert (
-        jenkins(mocker.Mock(request_context=mocker.Mock(lifespan_context=mocker.Mock(jenkins=mock_jenkins))))
-        == mock_jenkins
-    )
