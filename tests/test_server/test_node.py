@@ -4,7 +4,7 @@ from mcp_jenkins.jenkins.model.node import Node
 from mcp_jenkins.server import node
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_jenkins(mocker):
     mock_jenkins = mocker.Mock()
 

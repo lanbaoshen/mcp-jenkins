@@ -4,7 +4,7 @@ from mcp_jenkins.jenkins.model.queue import Queue, QueueItem, QueueItemTask
 from mcp_jenkins.server import queue
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_jenkins(mocker):
     mock_jenkins = mocker.Mock()
 
