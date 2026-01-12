@@ -24,6 +24,7 @@ class TestLifespan:
         mocker.patch('mcp_jenkins.core.lifespan.os', mocker.Mock(getenv=lambda key, default: 'true'))
         async with lifespan(mocker.Mock) as context:
             assert context.read_only is True
+            assert context.tool_regex == 'true'
 
 
 class TestJenkins:

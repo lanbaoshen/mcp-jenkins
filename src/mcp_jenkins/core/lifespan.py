@@ -14,13 +14,17 @@ class LifespanContext(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     read_only: bool = False
+    tool_regex: str = ''
+
     jenkins: Jenkins
 
 
 @asynccontextmanager
 async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanContext']:
     read_only = os.getenv('read_only', 'false').lower() == 'true'
-    yield LifespanContext(read_only=read_only, jenkins=_jenkins())
+    tool_regex = os.getenv('tool_regex', '')
+
+    yield LifespanContext(read_only=read_only, tool_regex=tool_regex, jenkins=_jenkins())
 
 
 def _jenkins() -> Jenkins:
