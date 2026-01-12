@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastmcp import Context, FastMCP
 from fastmcp.server.dependencies import get_http_request
 from loguru import logger
-from pydantic import BaseModel, ConfigDict, HttpUrl
+from pydantic import BaseModel, ConfigDict
 
 from mcp_jenkins.jenkins import Jenkins
 
@@ -71,7 +71,7 @@ def jenkins(ctx: Context) -> Jenkins:
     )
 
     ctx.request_context.lifespan_context.jenkins = Jenkins(
-        url=HttpUrl(jenkins_url),
+        url=jenkins_url,
         username=jenkins_username,
         password=jenkins_password,
         timeout=jenkins_timeout,

@@ -1,5 +1,4 @@
 import pytest
-from pydantic import HttpUrl
 from requests import HTTPError
 
 from mcp_jenkins.jenkins import Jenkins
@@ -18,7 +17,7 @@ def mock_session(mocker):
 
 @pytest.fixture
 def jenkins(mocker):
-    jenkins = Jenkins(url=HttpUrl('https://example.com/'), username='username', password='password')
+    jenkins = Jenkins(url='https://example.com/', username='username', password='password')
     mocker.patch.object(
         Jenkins, 'crumb_header', new_callable=mocker.PropertyMock, return_value={'Jenkins-Crumb': 'crumb-value'}
     )
@@ -57,7 +56,7 @@ class TestRequest:
 
 class TestCrumbHeader:
     def test_crumb_header(self, mocker):
-        jenkins = Jenkins(url=HttpUrl('https://example.com/'), username='username', password='password')
+        jenkins = Jenkins(url='https://example.com/', username='username', password='password')
         mocker.patch.object(
             jenkins,
             'request',
@@ -66,13 +65,13 @@ class TestCrumbHeader:
         assert jenkins.crumb_header == {'Jenkins-Crumb': 'crumb-value'}
 
     def test_crumb_header_404(self, mocker):
-        jenkins = Jenkins(url=HttpUrl('https://example.com/'), username='username', password='password')
+        jenkins = Jenkins(url='https://example.com/', username='username', password='password')
         mocker.patch.object(jenkins, 'request', side_effect=HTTPError(response=mocker.Mock(status_code=404)))
 
         assert jenkins.crumb_header == {}
 
     def test_crumb_header_other_http_error(self, mocker):
-        jenkins = Jenkins(url=HttpUrl('https://example.com/'), username='username', password='password')
+        jenkins = Jenkins(url='https://example.com/', username='username', password='password')
         mocker.patch.object(jenkins, 'request', side_effect=HTTPError(response=mocker.Mock(status_code=500)))
 
         with pytest.raises(HTTPError):

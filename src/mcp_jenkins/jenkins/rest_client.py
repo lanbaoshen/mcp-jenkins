@@ -5,7 +5,6 @@ from typing import Literal
 import requests
 from bs4 import BeautifulSoup
 from loguru import logger
-from pydantic import HttpUrl
 from requests import Response
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
@@ -23,13 +22,13 @@ class Jenkins:
     def __init__(
         self,
         *,
-        url: HttpUrl,
+        url: str,
         username: str,
         password: str,
         timeout: int = 75,
         verify_ssl: bool = True,
     ) -> None:
-        self.url = url.encoded_string()
+        self.url = url
         self.timeout = timeout
 
         self._crumb_header = None

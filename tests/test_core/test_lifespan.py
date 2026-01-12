@@ -1,5 +1,4 @@
 import pytest
-from pydantic import HttpUrl
 
 from mcp_jenkins.core.lifespan import jenkins, lifespan
 from mcp_jenkins.jenkins import Jenkins
@@ -11,7 +10,7 @@ class TestLifespan:
         class_mocker.patch(
             'mcp_jenkins.core.lifespan.jenkins',
             return_value=Jenkins(
-                url=HttpUrl('https://jenkins.example.com'),
+                url='https://jenkins.example.com',
                 username='username',
                 password='password',
                 timeout=5,
@@ -58,7 +57,7 @@ class TestJenkins:
         jenkins(mock_ctx)
 
         mock_jenkins.assert_called_once_with(
-            url=HttpUrl('https://jenkins.example.com'),
+            url='https://jenkins.example.com',
             username='username',
             password='password',
             timeout=5,
@@ -71,7 +70,7 @@ class TestJenkins:
         jenkins(mock_ctx)
 
         mock_jenkins.assert_called_once_with(
-            url=HttpUrl('https://jenkins.example.com'),
+            url='https://jenkins.example.com',
             username='username',
             password='password',
             timeout=5,
@@ -90,7 +89,7 @@ class TestJenkins:
         jenkins(mock_ctx)
 
         mock_jenkins.assert_called_once_with(
-            url=HttpUrl('https://jenkins.fromrstate.com'),
+            url='https://jenkins.fromrstate.com',
             username='state-username',
             password='state-password',
             timeout=5,
