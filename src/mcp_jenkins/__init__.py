@@ -28,6 +28,12 @@ if sys.platform == 'win32':
 )
 @click.option('--read-only', default=False, is_flag=True, help='Whether to run in read-only mode, default is False')
 @click.option('--tool-regex', default='', help='Regex pattern to enable specific tools')
+@click.option(
+    '--jenkins-session-singleton/--no-jenkins-session-singleton',
+    default=True,
+    help='In the same session, does it share the Jenkins request instance, '
+    'significantly reducing the number of instantiations and crumb requests',
+)
 @click.option('--transport', type=click.Choice(['stdio', 'sse', 'streamable-http']), default='stdio')
 @click.option('--host', default='0.0.0.0', help='Host to bind to for SSE or Streamable HTTP transport')  # noqa: S104
 @click.option('--port', default=9887, help='Port to listen on for SSE or Streamable HTTP transport')
@@ -39,6 +45,7 @@ def main(
     jenkins_verify_ssl: bool,  # noqa: FBT001
     read_only: bool,  # noqa: FBT001
     tool_regex: str,
+    jenkins_session_singleton: bool,  # noqa: FBT001
     transport: str,
     host: str,
     port: int,
@@ -54,6 +61,7 @@ def main(
     os.environ['jenkins_verify_ssl'] = str(jenkins_verify_ssl).lower()
     os.environ['read_only'] = str(read_only).lower()
     os.environ['tool_regex'] = tool_regex
+    os.environ['jenkins_session_singleton'] = str(jenkins_session_singleton).lower()
 
     from mcp_jenkins.server import mcp
 

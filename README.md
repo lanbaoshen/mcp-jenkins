@@ -30,18 +30,19 @@ When using command line arguments, you can specify the Jenkins server details as
 uvx mcp-jenkins --transport streamable-http
 ```
 
-| Argument                                       | Description                                                                                                     | Required |
-|------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|----------|
-| `--jenkins-url`                                | The URL of the Jenkins server. (Http app can set it via headers `x-jenkins-url`)                                | No       |
-| `--jenkins-username`                           | The username for Jenkins authentication. (Http app can set it via headers `x-jenkins-username`)                 | No       |
-| `--jenkins-password`                           | The password or API token for Jenkins authentication. (Http app can set it via headers `x-jenkins-password`)    | No       |
-| `--jenkins-timeout`                            | Timeout for Jenkins API requests in seconds. Default is `5` seconds.                                            | No       |
-| `--jenkins-verify-ssl/--no-jenkins-verify-ssl` | Whether to verify SSL certificates when connecting to Jenkins. Default is to verify.                            | No       |
-| `--read-only`                                  | Whether to enable read-only mode. Default is False                                                              | No       |
-| `--tool-regex`                                 | A regex pattern to filter available tools. Default is to allow all tools.                                       | No       |
-| `--transport`                                  | Transport method to use for communication. Options are `stdio`, `sse` or `streamable-http`. Default is `stdio`. | No       |
-| `--host`                                       | Host address for `streamable-http` transport. Default is `0.0.0.0`                                              | No       |
-| `--port`                                       | Port number for `streamable-http` transport. Default is `9887`.                                                 | No       |
+| Argument                                                     | Description                                                                                                     | Required |
+|--------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|----------|
+| `--jenkins-url`                                              | The URL of the Jenkins server. (Http app can set it via headers `x-jenkins-url`)                                | No       |
+| `--jenkins-username`                                         | The username for Jenkins authentication. (Http app can set it via headers `x-jenkins-username`)                 | No       |
+| `--jenkins-password`                                         | The password or API token for Jenkins authentication. (Http app can set it via headers `x-jenkins-password`)    | No       |
+| `--jenkins-timeout`                                          | Timeout for Jenkins API requests in seconds. Default is `5` seconds.                                            | No       |
+| `--jenkins-verify-ssl/--no-jenkins-verify-ssl`               | Whether to verify SSL certificates when connecting to Jenkins. Default is to verify.                            | No       |
+| `--jenkins-session-singleton/--no-jenkins-session-singleton` | Whether to use a singleton Jenkins client for all requests in the same session. Default is True.                | No       |
+| `--read-only`                                                | Whether to enable read-only mode. Default is False                                                              | No       |
+| `--tool-regex`                                               | A regex pattern to filter available tools. Default is to allow all tools.                                       | No       |
+| `--transport`                                                | Transport method to use for communication. Options are `stdio`, `sse` or `streamable-http`. Default is `stdio`. | No       |
+| `--host`                                                     | Host address for `streamable-http` transport. Default is `0.0.0.0`                                              | No       |
+| `--port`                                                     | Port number for `streamable-http` transport. Default is `9887`.                                                 | No       |
 
 ## Configuration and Usage
 
