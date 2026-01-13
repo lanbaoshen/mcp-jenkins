@@ -3,8 +3,17 @@ name: Run Tests
 on:
   push:
     branches: [ master ]
+    paths:
+      - src/**
+      - pyproject.toml
+      - tests/**
   pull_request:
     branches: [ master ]
+    paths:
+      - src/**
+      - pyproject.toml
+      - tests/**
+  workflow_dispatch:
 
 jobs:
   test:
