@@ -37,7 +37,7 @@ FROM python:3.14-alpine AS base
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL org.opencontainers.image.title="MCP Jenkins" \
       org.opencontainers.image.description="Model Context Protocol server for Jenkins integration with AI language models" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="1.0.1" \
       org.opencontainers.image.vendor="lanbaoshen" \
       org.opencontainers.image.authors="lanbaoshen@icloud.com" \
       org.opencontainers.image.licenses="MIT" \
