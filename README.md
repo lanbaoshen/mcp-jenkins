@@ -127,8 +127,8 @@ uvx mcp-jenkins \
 | `stop_build`               | Stop a specific build by job name and build number. |
 
 
-## Contribution
-[CONTRIBUTION.md](CONTRIBUTION.md)
+## Contributing
+[CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## License
 Licensed under MIT - see [LICENSE](LICENSE) file. This is not an official Jenkins product.
