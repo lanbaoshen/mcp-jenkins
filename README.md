@@ -15,6 +15,11 @@ uvx mcp-jenkins
 
 # Using pip
 pip install mcp-jenkins
+mcp-jenkins
+
+# Docker
+docker pull ghcr.io/lanbaoshen/mcp-jenkins:latest
+docker run -p 9887:9887 --rm ghcr.io/lanbaoshen/mcp-jenkins:latest --transport streamable-http
 ```
 
 ## Line Arguments
