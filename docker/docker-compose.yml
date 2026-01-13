@@ -103,7 +103,7 @@ services:
     labels:
       - "com.mcp-jenkins.service=production"
       - "com.mcp-jenkins.security=hardened"
-      - "com.mcp-jenkins.version=${VERSION:-0.4.0}"
+      - "com.mcp-jenkins.version=${VERSION:-1.0.0}"
 
   # Development service (less security restrictions for debugging)
   mcp-jenkins-dev:
