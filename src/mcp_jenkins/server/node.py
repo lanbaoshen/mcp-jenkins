@@ -40,3 +40,14 @@ async def get_node_config(ctx: Context, name: str) -> str:
         The config of the node
     """
     return jenkins(ctx).get_node_config(name=name)
+
+
+@mcp.tool(tags=['write'])
+async def update_node_config(ctx: Context, name: str, config: str) -> None:
+    """Update node configuration in Jenkins
+
+    Args:
+        name: The name of the node
+        config: The new configuration as an XML string
+    """
+    jenkins(ctx).update_node_config(name=name, config=config)

@@ -56,6 +56,7 @@ class Jenkins:
         headers: dict = None,
         crumb: bool = True,
         params: dict = None,
+        data: str = None,
     ) -> Response:
         """Send an HTTP request to a Jenkins REST endpoint.
 
@@ -65,6 +66,7 @@ class Jenkins:
             headers: Optional headers to include in the request.
             crumb: Whether to include a CSRF crumb header.
             params: Optional query parameters to include in the request.
+            data: Optional request body data.
 
         Returns:
             Response: The HTTP response object.
@@ -80,7 +82,7 @@ class Jenkins:
         url = self.endpoint_url(endpoint)
         logger.debug(f'Sending [{method}] request to {url}')
 
-        response = self._session.request(method=method, url=url, headers=headers, params=params)
+        response = self._session.request(method=method, url=url, headers=headers, params=params, data=data)
         response.raise_for_status()
 
         return response
@@ -104,6 +106,21 @@ class Jenkins:
                     raise
 
         return self._crumb_header
+
+    def _validate_xml(self, xml_string: str) -> None:
+        """Validate XML syntax.
+
+        Args:
+            xml_string: The XML string to validate.
+
+        Raises:
+            ValueError: If the XML is invalid with a descriptive error message.
+        """
+        import xml.etree.ElementTree as ET
+        try:
+            ET.fromstring(xml_string)
+        except ET.ParseError as e:
+            raise ValueError(f"Invalid XML configuration: {e}")
 
     def _parse_fullname(self, fullname: str) -> tuple[str, str]:
         """Parse a fullname into folder URL and short name.
@@ -191,6 +208,24 @@ class Jenkins:
         """
         response = self.request('GET', rest_endpoint.NODE_CONFIG(name=name))
         return response.text
+
+    def update_node_config(self, *, name: str, config: str) -> None:
+        """Update the configuration for a node.
+
+        Args:
+            name: The name of the node.
+            config: The new configuration as an XML string.
+
+        Raises:
+            ValueError: If the config XML is invalid.
+        """
+        self._validate_xml(config)
+        self.request(
+            'POST',
+            rest_endpoint.NODE_CONFIG(name=name),
+            headers=self.DEFAULT_HEADERS,
+            data=config
+        )
 
     def get_build(self, *, fullname: str, number: int, depth: int = 0) -> Build:
         """Get build by fullname and number.
@@ -342,6 +377,25 @@ class Jenkins:
         folder, name = self._parse_fullname(fullname)
         response = self.request('GET', rest_endpoint.ITEM_CONFIG(folder=folder, name=name))
         return response.text
+
+    def update_item_config(self, *, fullname: str, config: str) -> None:
+        """Update item configuration by its fullname.
+
+        Args:
+            fullname: The full name of the item (e.g., "folder1/folder2/item").
+            config: The new configuration as an XML string.
+
+        Raises:
+            ValueError: If the config XML is invalid.
+        """
+        self._validate_xml(config)
+        folder, name = self._parse_fullname(fullname)
+        self.request(
+            'POST',
+            rest_endpoint.ITEM_CONFIG(folder=folder, name=name),
+            headers=self.DEFAULT_HEADERS,
+            data=config
+        )
 
     def query_items(
         self,

@@ -111,12 +111,14 @@ uvx mcp-jenkins \
 |----------------------------|-----------------------------------------------------|
 | `get_item`                 | Get a specific item by name.                        |
 | `get_item_config`          | Get the configuration of a specific item.           |
+| `update_item_config`       | Update the configuration of a specific item.        |
 | `get_all_items`            | Get all items in Jenkins.                           |
 | `query_items`              | Query items based on pattern.                       |
 | `build_item`               | Build a item.                                       |
 | `get_all_nodes`            | Get all nodes in Jenkins.                           |
 | `get_node`                 | Get a specific node by name.                        |
 | `get_node_config`          | Get the configuration of a specific node.           |
+| `update_node_config`       | Update the configuration of a specific node.        |
 | `get_all_queue_items`      | Get all queue items in Jenkins.                     |
 | `get_queue_item`           | Get a specific queue item by ID.                    |
 | `cancel_queue_item`        | Cancel a specific queue item by ID.                 |

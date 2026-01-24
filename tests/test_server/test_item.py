@@ -47,6 +47,18 @@ async def test_get_item_config(mock_jenkins, mocker):
 
 
 @pytest.mark.asyncio
+async def test_update_item_config(mock_jenkins, mocker):
+    config_xml = '<project><description>Updated</description></project>'
+    mock_jenkins.update_item_config.return_value = None
+
+    await item.update_item_config.fn(mocker.Mock(), fullname='job1', config=config_xml)
+
+    mock_jenkins.update_item_config.assert_called_once_with(
+        fullname='job1', config=config_xml
+    )
+
+
+@pytest.mark.asyncio
 async def test_query_items(mock_jenkins, mocker):
     mock_jenkins.query_items.return_value = [
         Job(fullname='job1', color='blue', name='job1', url='1', class_='Job'),
