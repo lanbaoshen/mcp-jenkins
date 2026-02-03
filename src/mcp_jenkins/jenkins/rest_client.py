@@ -53,6 +53,7 @@ class Jenkins:
         method: Literal['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
         endpoint: str,
         *,
+        data: dict | str = None,
         headers: dict = None,
         crumb: bool = True,
         params: dict = None,
@@ -62,6 +63,7 @@ class Jenkins:
         Args:
             method: HTTP method to use.
             endpoint: Jenkins REST endpoint path.
+            data: Data to send.
             headers: Optional headers to include in the request.
             crumb: Whether to include a CSRF crumb header.
             params: Optional query parameters to include in the request.
@@ -80,7 +82,7 @@ class Jenkins:
         url = self.endpoint_url(endpoint)
         logger.debug(f'Sending [{method}] request to {url}')
 
-        response = self._session.request(method=method, url=url, headers=headers, params=params)
+        response = self._session.request(method=method, url=url, headers=headers, params=params, data=data)
         response.raise_for_status()
 
         return response
@@ -191,6 +193,20 @@ class Jenkins:
         """
         response = self.request('GET', rest_endpoint.NODE_CONFIG(name=name))
         return response.text
+
+    def set_node_config(self, *, name: str, config_xml: str) -> None:
+        """Set the configuration for a node.
+
+        Args:
+            name: The name of the node.
+            config_xml: The node configuration as an XML string.
+        """
+        self.request(
+            'POST',
+            rest_endpoint.NODE_CONFIG(name=name),
+            headers=self.DEFAULT_HEADERS,
+            data=config_xml,
+        )
 
     def get_build(self, *, fullname: str, number: int, depth: int = 0) -> Build:
         """Get build by fullname and number.
@@ -342,6 +358,21 @@ class Jenkins:
         folder, name = self._parse_fullname(fullname)
         response = self.request('GET', rest_endpoint.ITEM_CONFIG(folder=folder, name=name))
         return response.text
+
+    def set_item_config(self, *, fullname: str, config_xml: str) -> None:
+        """Set item configuration by its fullname.
+
+        Args:
+            fullname: The full name of the item (e.g., "folder1/folder2/item").
+            config_xml: The item configuration as an XML string.
+        """
+        folder, name = self._parse_fullname(fullname)
+        self.request(
+            'POST',
+            rest_endpoint.ITEM_CONFIG(folder=folder, name=name),
+            headers=self.DEFAULT_HEADERS,
+            data=config_xml,
+        )
 
     def query_items(
         self,
