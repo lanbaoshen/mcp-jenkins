@@ -41,3 +41,12 @@ async def test_get_node(mock_jenkins, mocker):
 async def test_get_node_config(mock_jenkins, mocker):
     mock_jenkins.get_node_config.return_value = '<node>config</node>'
     assert await node.get_node_config.fn(mocker.Mock(), name='node1') == '<node>config</node>'
+
+
+@pytest.mark.asyncio
+async def test_set_node_config(mock_jenkins, mocker):
+    mock_jenkins.set_node_config.return_value = None
+
+    await node.set_node_config.fn(mocker.Mock(), name='node1', config_xml='<node>config</node>')
+
+    mock_jenkins.set_node_config.assert_called_once_with(name='node1', config_xml='<node>config</node>')

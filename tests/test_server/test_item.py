@@ -45,6 +45,16 @@ async def test_get_item_config(mock_jenkins, mocker):
 
     assert await item.get_item_config.fn(mocker.Mock(), fullname='job1') == '<xml>config</xml>'
 
+@pytest.mark.asyncio
+async def test_set_item_config(mock_jenkins, mocker):
+    mock_jenkins.set_item_config.return_value = None
+
+    await item.set_item_config.fn(mocker.Mock(), fullname='job1', config_xml='<xml>config</xml>')
+
+    mock_jenkins.set_item_config.assert_called_once_with(
+        fullname='job1', config_xml='<xml>config</xml>'
+    )
+
 
 @pytest.mark.asyncio
 async def test_query_items(mock_jenkins, mocker):

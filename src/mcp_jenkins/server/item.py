@@ -41,6 +41,15 @@ async def get_item_config(ctx: Context, fullname: str) -> str:
     """
     return jenkins(ctx).get_item_config(fullname=fullname)
 
+@mcp.tool(tags=['write'])
+async def set_item_config(ctx: Context, fullname: str, config_xml: str) -> None:
+    """Set specific item config in Jenkins
+
+    Args:
+        fullname: The fullname of the item
+        config_xml: The config XML of the item
+    """
+    jenkins(ctx).set_item_config(fullname=fullname, config_xml=config_xml)
 
 @mcp.tool(tags=['read'])
 async def query_items(
