@@ -19,7 +19,7 @@ async def test_get_all_queue_items(mock_jenkins, mocker):
     node2 = Node(displayName='node2', offline=True, executors=[])
 
     mock_jenkins.get_nodes.return_value = [node1, node2]
-    assert await node.get_all_nodes.fn(mocker.Mock()) == [
+    assert await node.get_all_nodes(mocker.Mock()) == [
         {'displayName': 'node1', 'offline': False},
         {'displayName': 'node2', 'offline': True},
     ]
@@ -30,7 +30,7 @@ async def test_get_node(mock_jenkins, mocker):
     node1 = Node(displayName='node1', offline=False, executors=[])
 
     mock_jenkins.get_node.return_value = node1
-    assert await node.get_node.fn(mocker.Mock(), name='node1') == {
+    assert await node.get_node(mocker.Mock(), name='node1') == {
         'displayName': 'node1',
         'offline': False,
         'executors': [],
@@ -40,4 +40,4 @@ async def test_get_node(mock_jenkins, mocker):
 @pytest.mark.asyncio
 async def test_get_node_config(mock_jenkins, mocker):
     mock_jenkins.get_node_config.return_value = '<node>config</node>'
-    assert await node.get_node_config.fn(mocker.Mock(), name='node1') == '<node>config</node>'
+    assert await node.get_node_config(mocker.Mock(), name='node1') == '<node>config</node>'

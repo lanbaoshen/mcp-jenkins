@@ -1,10 +1,10 @@
 import re
+from collections.abc import Sequence
 from typing import Any, Literal
 
 from fastmcp import FastMCP
 from fastmcp.tools import Tool as FastMCPTool
 from loguru import logger
-from mcp.types import Tool as MCPTool
 from starlette.applications import Starlette
 from starlette.middleware import Middleware as ASGIMiddleware
 
@@ -14,40 +14,39 @@ __all__ = ['mcp']
 
 
 class JenkinsMCP(FastMCP[LifespanContext]):
-    async def _list_tools_mcp(self) -> list[MCPTool]:
+    async def list_tools(self, **kwargs: Any) -> Sequence[FastMCPTool]:  # noqa: ANN401
         """List available tools, filtering based on lifespan context (e.g. read-only mode)
 
         Returns:
-            List of available mcp tools
+            Filtered sequence of available tools
         """
-        request_context = self._mcp_server.request_context
+        all_tools = list(await super().list_tools(**kwargs))
 
+        request_context = self._mcp_server.request_context
         if request_context is None or request_context.lifespan_context is None:
-            logger.warning('Lifespan context not available during _list_tools_mcp call.')
-            return []
+            logger.warning('Lifespan context not available during list_tools call.')
+            return all_tools
 
         jenkins_lifespan_context: LifespanContext = request_context.lifespan_context
+        filtered_tools: list[FastMCPTool] = []
 
-        all_tools: dict[str, FastMCPTool] = await self.get_tools()
-        mcp_tools: list[MCPTool] = []
-
-        for registered_name, tool in all_tools.items():
+        for tool in all_tools:
             if not tool:
                 continue
 
             if jenkins_lifespan_context.read_only and 'read' not in tool.tags:
-                logger.debug(f'Excluding tool [{registered_name}] due to read-only mode')
+                logger.debug(f'Excluding tool [{tool.name}] due to read-only mode')
                 continue
 
             if jenkins_lifespan_context.tool_regex and not re.search(
-                jenkins_lifespan_context.tool_regex, registered_name
+                jenkins_lifespan_context.tool_regex, tool.name
             ):
-                logger.debug(f'Excluding tool [{registered_name}] due to tool_regex filter')
+                logger.debug(f'Excluding tool [{tool.name}] due to tool_regex filter')
                 continue
 
-            mcp_tools.append(tool.to_mcp_tool(name=registered_name))
+            filtered_tools.append(tool)
 
-        return mcp_tools
+        return filtered_tools
 
     def http_app(
         self,
