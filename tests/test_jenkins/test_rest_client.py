@@ -285,6 +285,7 @@ class TestNode:
             data='<node>new config</node>',
         )
 
+
 class TestBuild:
     def test_get_build(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(

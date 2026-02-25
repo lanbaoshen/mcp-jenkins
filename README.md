@@ -40,7 +40,6 @@ uvx mcp-jenkins --transport streamable-http
 | `--jenkins-verify-ssl/--no-jenkins-verify-ssl`               | Whether to verify SSL certificates when connecting to Jenkins. Default is to verify.                            | No       |
 | `--jenkins-session-singleton/--no-jenkins-session-singleton` | Whether to use a singleton Jenkins client for all requests in the same session. Default is True.                | No       |
 | `--read-only`                                                | Whether to enable read-only mode. Default is False                                                              | No       |
-| `--tool-regex`                                               | A regex pattern to filter available tools. Default is to allow all tools.                                       | No       |
 | `--transport`                                                | Transport method to use for communication. Options are `stdio`, `sse` or `streamable-http`. Default is `stdio`. | No       |
 | `--host`                                                     | Host address for `streamable-http` transport. Default is `0.0.0.0`                                              | No       |
 | `--port`                                                     | Port number for `streamable-http` transport. Default is `9887`.                                                 | No       |
@@ -48,8 +47,8 @@ uvx mcp-jenkins --transport streamable-http
 ## Configuration and Usage
 
 ### Jetbrains Github Copilot
-1. Open Jetbrains Settings  
-2. Navigate to Github Copilot > MCP > Configure  
+1. Open Jetbrains Settings
+2. Navigate to Github Copilot > MCP > Configure
 3. Add the following configuration:
 ```json
 {
@@ -69,8 +68,8 @@ uvx mcp-jenkins --transport streamable-http
 ```
 
 ### VSCode Copilot Chat
-1. Create `.vscode` folder with `mcp.json` file in you workspace for local setup or edit `settings.json` trough settings menu.  
-2. Insert the following configuration:  
+1. Create `.vscode` folder with `mcp.json` file in you workspace for local setup or edit `settings.json` trough settings menu.
+2. Insert the following configuration:
 - SSE mode
 ```json
 {
@@ -82,7 +81,7 @@ uvx mcp-jenkins --transport streamable-http
     }
 }
 ```
-- Streamable-Http mode  
+- Streamable-Http mode
 ```json
 {
     "servers": {
