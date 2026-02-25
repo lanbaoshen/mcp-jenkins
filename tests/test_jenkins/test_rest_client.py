@@ -39,6 +39,7 @@ class TestRequest:
                 'Jenkins-Crumb': 'crumb-value',
             },
             params=None,
+            data=None,
         )
 
     def test_request_without_crumb(self, jenkins, mock_session):
@@ -51,6 +52,7 @@ class TestRequest:
                 'Custom-Header': 'value',
             },
             params=None,
+            data=None,
         )
 
 
@@ -152,6 +154,7 @@ class TestQueue:
             url='https://example.com/queue/cancelItem?id=42',
             headers={'Jenkins-Crumb': 'crumb-value'},
             params=None,
+            data=None,
         )
 
 
@@ -194,6 +197,7 @@ class TestNode:
             url='https://example.com/computer/node-1/api/json?depth=0',
             headers={'Jenkins-Crumb': 'crumb-value'},
             params=None,
+            data=None,
         )
 
     def test_get_node_master(self, jenkins, mock_session, mocker):
@@ -234,6 +238,7 @@ class TestNode:
             url='https://example.com/computer/(master)/api/json?depth=0',
             headers={'Jenkins-Crumb': 'crumb-value'},
             params=None,
+            data=None,
         )
 
     def test_get_nodes(self, jenkins, mock_session, mocker):
@@ -264,6 +269,21 @@ class TestNode:
 
         assert jenkins.get_node_config(name='node-1') == '<node>config</node>'
 
+    def test_set_node_config(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(status_code=200)
+
+        assert jenkins.set_node_config(name='node-1', config_xml='<node>new config</node>') is None
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/computer/node-1/config.xml',
+            headers={
+                'Jenkins-Crumb': 'crumb-value',
+                'Content-Type': 'text/xml; charset=utf-8',
+            },
+            params=None,
+            data='<node>new config</node>',
+        )
 
 class TestBuild:
     def test_get_build(self, jenkins, mock_session, mocker):
@@ -312,6 +332,7 @@ class TestBuild:
             url='https://example.com/job/example-job/42/stop',
             headers={'Jenkins-Crumb': 'crumb-value'},
             params=None,
+            data=None,
         )
 
     def test_get_build_replay(self, jenkins, mock_session, mocker):
@@ -558,6 +579,22 @@ class TestItem:
 
         assert jenkins.get_item_config(fullname='example-job') == '<project>config</project>'
 
+    def test_set_item_config(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(status_code=200)
+
+        assert jenkins.set_item_config(fullname='example-job', config_xml='<project>new config</project>') is None
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/example-job/config.xml',
+            headers={
+                'Jenkins-Crumb': 'crumb-value',
+                'Content-Type': 'text/xml; charset=utf-8',
+            },
+            params=None,
+            data='<project>new config</project>',
+        )
+
     def test_query_items(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(
             json=lambda: {
@@ -629,4 +666,5 @@ class TestItem:
             url='https://example.com/job/example-job/buildWithParameters',
             headers={'Jenkins-Crumb': 'crumb-value'},
             params={'param1': 'value1'},
+            data=None,
         )
