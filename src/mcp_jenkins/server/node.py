@@ -41,6 +41,7 @@ async def get_node_config(ctx: Context, name: str) -> str:
     """
     return jenkins(ctx).get_node_config(name=name)
 
+
 @mcp.tool(tags=['write'])
 async def set_node_config(ctx: Context, name: str, config_xml: str) -> None:
     """Set specific node config in Jenkins

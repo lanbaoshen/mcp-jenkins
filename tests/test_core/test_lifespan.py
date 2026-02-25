@@ -27,8 +27,6 @@ class TestLifespan:
                 'jenkins_password': None,
                 'jenkins_timeout': '5',
                 'jenkins_verify_ssl': 'true',
-                'read_only': 'true',
-                'tool_regex': 'true',
                 'jenkins_session_singleton': 'true',
             }
             return env.get(key, default)
@@ -40,8 +38,6 @@ class TestLifespan:
             assert context.jenkins_password is None
             assert context.jenkins_timeout == 5
             assert context.jenkins_verify_ssl is True
-            assert context.read_only is True
-            assert context.tool_regex == 'true'
             assert context.jenkins_session_singleton is True
 
 

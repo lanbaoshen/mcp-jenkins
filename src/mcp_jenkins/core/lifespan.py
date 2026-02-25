@@ -19,8 +19,6 @@ class LifespanContext(BaseModel):
     jenkins_timeout: int = 5
     jenkins_verify_ssl: bool = True
 
-    read_only: bool = False
-    tool_regex: str = ''
     jenkins_session_singleton: bool = True
 
 
@@ -34,9 +32,6 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
     jenkins_verify_ssl = os.getenv('jenkins_verify_ssl', 'true').lower() == 'true'
     jenkins_session_singleton = os.getenv('jenkins_session_singleton', 'true').lower() == 'true'
 
-    read_only = os.getenv('read_only', 'false').lower() == 'true'
-    tool_regex = os.getenv('tool_regex', '')
-
     yield LifespanContext(
         jenkins_url=jenkins_url,
         jenkins_username=jenkins_username,
@@ -44,8 +39,6 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
         jenkins_timeout=jenkins_timeout,
         jenkins_verify_ssl=jenkins_verify_ssl,
         jenkins_session_singleton=jenkins_session_singleton,
-        read_only=read_only,
-        tool_regex=tool_regex,
     )
 
 

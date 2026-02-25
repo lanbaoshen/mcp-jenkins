@@ -27,7 +27,7 @@ if sys.platform == 'win32':
     help='Whether to verify SSL certificates, default is True',
 )
 @click.option('--read-only', default=False, is_flag=True, help='Whether to run in read-only mode, default is False')
-@click.option('--tool-regex', default='', help='Regex pattern to enable specific tools')
+@click.option('--tool-regex', default='', help='(Deprecated) Regex pattern to enable specific tools')
 @click.option(
     '--jenkins-session-singleton/--no-jenkins-session-singleton',
     default=True,
@@ -59,11 +59,15 @@ def main(
 
     os.environ['jenkins_timeout'] = str(jenkins_timeout)
     os.environ['jenkins_verify_ssl'] = str(jenkins_verify_ssl).lower()
-    os.environ['read_only'] = str(read_only).lower()
-    os.environ['tool_regex'] = tool_regex
     os.environ['jenkins_session_singleton'] = str(jenkins_session_singleton).lower()
 
     from mcp_jenkins.server import mcp
+
+    if read_only:
+        mcp.enable(tags={'read'}, only=True)
+
+    if tool_regex:
+        logger.warning('The [--tool-regex] option is deprecated and will be removed in future versions.')
 
     if transport == 'stdio':
         asyncio.run(mcp.run_async(transport=transport))
