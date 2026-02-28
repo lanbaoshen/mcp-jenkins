@@ -56,9 +56,10 @@ def jenkins(ctx: Context) -> Jenkins:
     try:
         requests = get_http_request()
 
-        jenkins_url = getattr(requests.state, 'jenkins_url', jenkins_url)
-        jenkins_username = getattr(requests.state, 'jenkins_username', jenkins_username)
-        jenkins_password = getattr(requests.state, 'jenkins_password', jenkins_password)
+        jenkins_url = getattr(requests.state, 'jenkins_url', None) or jenkins_url
+        jenkins_username = getattr(requests.state, 'jenkins_username', None) or jenkins_username
+        jenkins_password = getattr(requests.state, 'jenkins_password', None) or jenkins_password
+
 
         logger.debug(f'Retrieved Jenkins auth from request state - url: {jenkins_url}, username: {jenkins_username}')
     except RuntimeError as e:
