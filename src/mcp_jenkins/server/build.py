@@ -31,7 +31,7 @@ async def get_build(ctx: Context, fullname: str, number: int | None = None) -> d
     if number is None:
         number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
 
-    return jenkins(ctx).get_build(fullname=fullname, number=number).model_dump(exclude_none=True)
+    return jenkins(ctx).get_build(fullname=fullname, number=number).model_dump(exclude_none=True, exclude={'actions'})
 
 
 @mcp.tool(tags=['read'])
