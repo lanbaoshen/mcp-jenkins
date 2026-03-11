@@ -221,7 +221,19 @@ class Jenkins:
         """
         folder, name = self._parse_fullname(fullname)
         response = self.request('GET', rest_endpoint.BUILD(folder=folder, name=name, number=number, depth=depth))
-        return Build.model_validate(response.json())
+        data = response.json()
+
+        # Extract parameters from actions
+        parameters = {}
+        for action in data.get('actions', []):
+            if action and action.get('_class') == 'hudson.model.ParametersAction':
+                for param in action.get('parameters', []):
+                    if 'name' in param:
+                        parameters[param['name']] = param.get('value')
+        if parameters:
+            data['parameters'] = parameters
+
+        return Build.model_validate(data)
 
     def get_build_console_output(self, *, fullname: str, number: int) -> str:
         """Get the console output of a specific build.
