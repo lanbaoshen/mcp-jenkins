@@ -325,6 +325,64 @@ class TestBuild:
 
         assert jenkins.get_build_console_output(fullname='example-job', number=1) == 'Console output here'
 
+    def test_get_build_console_output_progressive(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            text='Build started\nStep 1...',
+            headers={'X-Text-Size': '1024', 'X-More-Data': 'true'},
+        )
+
+        result = jenkins.get_build_console_output_progressive(fullname='example-job', number=1, start=0)
+
+        assert result == {
+            'output': 'Build started\nStep 1...',
+            'next_start': 1024,
+            'has_more_data': True,
+        }
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/example-job/1/logText/progressiveText',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params={'start': 0},
+            data=None,
+        )
+
+    def test_get_build_console_output_progressive_no_more_data(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            text='Finished: SUCCESS',
+            headers={'X-Text-Size': '4096'},
+        )
+
+        result = jenkins.get_build_console_output_progressive(fullname='example-job', number=1, start=2048)
+
+        assert result == {
+            'output': 'Finished: SUCCESS',
+            'next_start': 4096,
+            'has_more_data': False,
+        }
+
+    def test_get_build_console_output_progressive_folder_job(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            text='Log output',
+            headers={'X-Text-Size': '512', 'X-More-Data': 'false'},
+        )
+
+        result = jenkins.get_build_console_output_progressive(fullname='folder/nested-job', number=3, start=0)
+
+        assert result == {
+            'output': 'Log output',
+            'next_start': 512,
+            'has_more_data': False,
+        }
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/folder/job/nested-job/3/logText/progressiveText',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params={'start': 0},
+            data=None,
+        )
+
     def test_stop_build(self, jenkins, mock_session):
         assert jenkins.stop_build(fullname='example-job', number=42) is None
 

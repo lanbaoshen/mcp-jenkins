@@ -237,6 +237,33 @@ class Jenkins:
         response = self.request('GET', rest_endpoint.BUILD_CONSOLE_OUTPUT(folder=folder, name=name, number=number))
         return response.text
 
+    def get_build_console_output_progressive(self, *, fullname: str, number: int, start: int = 0) -> dict:
+        """Get the console output of a build with byte-offset pagination.
+
+        Uses Jenkins' progressiveText API for incremental log retrieval,
+        which is useful for large build logs that are impractical to fetch at once.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            start: Byte offset to start reading from.
+
+        Returns:
+            A dictionary with 'output' (log text), 'next_start' (byte offset for
+            the next request), and 'has_more_data' (whether more output is available).
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request(
+            'GET',
+            rest_endpoint.BUILD_PROGRESSIVE_TEXT(folder=folder, name=name, number=number),
+            params={'start': start},
+        )
+        return {
+            'output': response.text,
+            'next_start': int(response.headers.get('X-Text-Size', 0)),
+            'has_more_data': response.headers.get('X-More-Data', 'false').lower() == 'true',
+        }
+
     def stop_build(self, *, fullname: str, number: int) -> None:
         """Stop a running Jenkins build.
 
