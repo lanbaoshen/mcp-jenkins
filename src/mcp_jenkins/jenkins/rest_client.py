@@ -123,6 +123,46 @@ class Jenkins:
         folder = f'job/{"/job/".join(parts[:-1])}/' if len(parts) > 1 else ''
         return folder, name
 
+    def _build_view_path(self, view_path: str) -> str:
+        """Build a Jenkins view URL path from a slash-separated view path.
+
+        Args:
+            view_path: Slash-separated view path (e.g. "frontend/nightly").
+
+        Returns:
+            The Jenkins URL path segment (e.g. "view/frontend/view/nightly").
+        """
+        from urllib.parse import quote
+
+        parts = [quote(p.strip(), safe='') for p in view_path.split('/') if p.strip()]
+        return '/'.join(f'view/{p}' for p in parts)
+
+    def get_views(self) -> list[dict]:
+        """Get all top-level views from Jenkins.
+
+        Returns:
+            A list of dictionaries with 'name' and 'url' for each view.
+        """
+        response = self.request('GET', rest_endpoint.VIEWS)
+        return response.json().get('views', [])
+
+    def get_view(self, *, view_path: str, depth: int = 0) -> dict:
+        """Get a specific view by path.
+
+        Supports nested views using slash-separated paths
+        (e.g. "All", "frontend/nightly", "frontend/nightly/nightly linux").
+
+        Args:
+            view_path: Slash-separated view path.
+            depth: The depth of the information to retrieve.
+
+        Returns:
+            A dictionary with the view's name, jobs, and/or nested views.
+        """
+        url_path = self._build_view_path(view_path)
+        response = self.request('GET', rest_endpoint.VIEW(view_path=url_path, depth=depth))
+        return response.json()
+
     def get_queue(self, *, depth: int = 1) -> Queue:
         """Get queue.
 

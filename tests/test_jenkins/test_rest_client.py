@@ -86,6 +86,100 @@ def test_parse_fullname(jenkins):
     assert jenkins._parse_fullname('folder/subfolder/job-name') == ('job/folder/job/subfolder/', 'job-name')
 
 
+class TestView:
+    def test_build_view_path(self, jenkins):
+        assert jenkins._build_view_path('All') == 'view/All'
+        assert jenkins._build_view_path('frontend/nightly') == 'view/frontend/view/nightly'
+        assert jenkins._build_view_path('frontend/nightly/nightly linux') == (
+            'view/frontend/view/nightly/view/nightly%20linux'
+        )
+
+    def test_get_views(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'views': [
+                    {'name': 'All', 'url': 'https://example.com/view/All/'},
+                    {'name': 'frontend', 'url': 'https://example.com/view/frontend/'},
+                ]
+            }
+        )
+
+        assert jenkins.get_views() == [
+            {'name': 'All', 'url': 'https://example.com/view/All/'},
+            {'name': 'frontend', 'url': 'https://example.com/view/frontend/'},
+        ]
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/api/json?tree=views[name,url]',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+        )
+
+    def test_get_view(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'name': 'frontend',
+                'jobs': [
+                    {
+                        'name': 'build-ui',
+                        'url': 'https://example.com/job/build-ui/',
+                        'color': 'blue',
+                    }
+                ],
+            }
+        )
+
+        result = jenkins.get_view(view_path='frontend')
+
+        assert result == {
+            'name': 'frontend',
+            'jobs': [
+                {
+                    'name': 'build-ui',
+                    'url': 'https://example.com/job/build-ui/',
+                    'color': 'blue',
+                }
+            ],
+        }
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/view/frontend/api/json?depth=0',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+        )
+
+    def test_get_view_nested(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'name': 'nightly linux',
+                'jobs': [
+                    {
+                        'name': 'integration-tests',
+                        'url': 'https://example.com/job/integration-tests/',
+                        'color': 'blue',
+                    }
+                ],
+            }
+        )
+
+        result = jenkins.get_view(view_path='frontend/nightly/nightly linux')
+
+        assert result['name'] == 'nightly linux'
+        assert len(result['jobs']) == 1
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/view/frontend/view/nightly/view/nightly%20linux/api/json?depth=0',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+        )
+
+
 class TestQueue:
     def test_get_queue(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(

@@ -29,6 +29,9 @@ NODE = RestEndpoint('computer/{name}/api/json?depth={depth}')
 NODES = RestEndpoint('computer/api/json?depth={depth}')
 NODE_CONFIG = RestEndpoint('computer/{name}/config.xml')
 
+VIEW = RestEndpoint('{view_path}/api/json?depth={depth}')
+VIEWS = RestEndpoint('api/json?tree=views[name,url]')
+
 BUILD = RestEndpoint('{folder}job/{name}/{number}/api/json?depth={depth}')
 BUILD_CONSOLE_OUTPUT = RestEndpoint('{folder}job/{name}/{number}/consoleText')
 BUILD_STOP = RestEndpoint('{folder}job/{name}/{number}/stop')
