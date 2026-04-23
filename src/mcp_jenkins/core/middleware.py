@@ -1,5 +1,82 @@
+import time
+from typing import Any
+
+from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 from loguru import logger
+from mcp.types import CallToolRequestParams
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+
+def _username_from_context(fastmcp_context: Any) -> str:
+    """Extract the Jenkins username from a FastMCP context, falling back to 'anonymous'."""
+    try:
+        # Try per-request auth header first (HTTP transport)
+        from fastmcp.server.dependencies import get_http_request
+
+        req = get_http_request()
+        username = getattr(req.state, 'jenkins_username', None)
+        if username:
+            return username
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        # Fall back to lifespan-level credentials (env / CLI args)
+        username = fastmcp_context.request_context.lifespan_context.jenkins_username
+        if username:
+            return username
+    except Exception:  # noqa: BLE001
+        pass
+
+    return 'anonymous'
+
+
+class MetricsMiddleware(Middleware):
+    """FastMCP middleware that records per-tool Prometheus metrics.
+
+    Tracks:
+    * total tool invocations (``mcp_jenkins_tool_calls_total``)
+    * tool execution duration (``mcp_jenkins_tool_duration_seconds``)
+    * active concurrent calls (``mcp_jenkins_active_tool_calls``)
+    """
+
+    async def on_call_tool(
+        self,
+        context: MiddlewareContext[CallToolRequestParams],
+        call_next: CallNext[CallToolRequestParams, Any],
+    ) -> Any:
+        from mcp_jenkins.utils.prometheus_metrics import get_metrics
+
+        metrics = get_metrics()
+        tool_name: str = context.message.name
+        username: str = _username_from_context(context.fastmcp_context)
+
+        if metrics is not None:
+            metrics.inc_active()
+
+        start = time.perf_counter()
+        status = 'success'
+        try:
+            result = await call_next(context)
+            return result
+        except Exception:
+            status = 'error'
+            raise
+        finally:
+            duration = time.perf_counter() - start
+            if metrics is not None:
+                metrics.record_tool_call(
+                    tool_name=tool_name,
+                    status=status,
+                    username=username,
+                    duration=duration,
+                )
+                metrics.dec_active()
+
+            logger.debug(
+                f'[METRICS] tool={tool_name} status={status} '
+                f'duration={duration:.3f}s user={username}'
+            )
 
 
 class AuthMiddleware:
