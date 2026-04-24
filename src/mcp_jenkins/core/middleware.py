@@ -31,6 +31,22 @@ def _username_from_context(fastmcp_context: Any) -> str:
     return 'anonymous'
 
 
+def _user_agent_from_request() -> str:
+    """Extract the User-Agent from the current request state (set by AuthMiddleware), or 'unknown'."""
+    try:
+        from fastmcp.server.dependencies import get_http_request
+
+        req = get_http_request()
+        # Prefer the value stored by AuthMiddleware in request state
+        user_agent = getattr(req.state, 'user_agent', None)
+        if user_agent:
+            return user_agent
+        # Fallback: read directly from headers
+        return req.headers.get('user-agent', 'unknown') or 'unknown'
+    except Exception:  # noqa: BLE001
+        return 'unknown'
+
+
 class MetricsMiddleware(Middleware):
     """FastMCP middleware that records per-tool Prometheus metrics.
 
@@ -50,6 +66,7 @@ class MetricsMiddleware(Middleware):
         metrics = get_metrics()
         tool_name: str = context.message.name
         username: str = _username_from_context(context.fastmcp_context)
+        user_agent: str = _user_agent_from_request()
 
         if metrics is not None:
             metrics.inc_active()
@@ -71,6 +88,11 @@ class MetricsMiddleware(Middleware):
                     username=username,
                     duration=duration,
                 )
+                metrics.record_user_activity(
+                    activity_type=tool_name,
+                    user_agent=user_agent,
+                    username=username,
+                )
                 metrics.dec_active()
 
             logger.debug(
@@ -80,7 +102,8 @@ class MetricsMiddleware(Middleware):
 
 
 class AuthMiddleware:
-    """ASGI-compliant middleware to extract Jenkins auth from X-Jenkins-* headers."""
+    """ASGI-compliant middleware to extract Jenkins auth from X-Jenkins-* headers
+    and record per-request HTTP metrics."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -110,12 +133,45 @@ class AuthMiddleware:
         jenkins_username = jenkins_username_bytes.decode('latin-1') if jenkins_username_bytes else None
         jenkins_password = jenkins_password_bytes.decode('latin-1') if jenkins_password_bytes else None
 
+        user_agent_bytes = headers.get(b'user-agent')
+        user_agent = user_agent_bytes.decode('latin-1') if user_agent_bytes else 'unknown'
+
         # Store in scope state (modify in place so Starlette Request can access it)
         scope_copy['state']['jenkins_url'] = jenkins_url
         scope_copy['state']['jenkins_username'] = jenkins_username
         scope_copy['state']['jenkins_password'] = jenkins_password
+        scope_copy['state']['user_agent'] = user_agent
 
-        logger.debug(f'[JENKINS-AUTH-MIDDLEWARE] Captured headers - url: {jenkins_url}, username: {jenkins_username}')
+        logger.debug(f'[JENKINS-AUTH-MIDDLEWARE] Captured headers - url: {jenkins_url}, username: {jenkins_username}, user_agent: {user_agent}')
 
-        # Call the next application with modified scope and safe send wrapper
-        await self.app(scope_copy, receive, send)
+        # Collect HTTP metrics -------------------------------------------------
+        from mcp_jenkins.utils.prometheus_metrics import get_metrics
+
+        endpoint: str = scope_copy.get('path', '/')
+        method: str = scope_copy.get('method', 'GET').upper()
+
+        metrics = get_metrics()
+        if metrics is not None:
+            metrics.inc_concurrent()
+
+        start = time.perf_counter()
+        captured_status: list[str] = []
+
+        async def send_with_metrics(message: Any) -> None:
+            if message['type'] == 'http.response.start':
+                captured_status.append(str(message.get('status', 0)))
+            await send(message)
+
+        try:
+            await self.app(scope_copy, receive, send_with_metrics)
+        finally:
+            duration = time.perf_counter() - start
+            status_code = captured_status[0] if captured_status else '0'
+            if metrics is not None:
+                metrics.record_http_request(
+                    endpoint=endpoint,
+                    method=method,
+                    status_code=status_code,
+                    duration=duration,
+                )
+                metrics.dec_concurrent()

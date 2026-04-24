@@ -59,6 +59,7 @@ def _safe_metric(metric_class: type[Any], *args: Any, **kwargs: Any) -> Any | No
 
 
 _TOOL_DURATION_BUCKETS = (0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0)
+_HTTP_REQUEST_DURATION_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0)
 
 
 class MCPJenkinsMetrics:
@@ -69,6 +70,10 @@ class MCPJenkinsMetrics:
     * ``mcp_jenkins_tool_calls_total``  – Counter  (tool_name, status, username, pod)
     * ``mcp_jenkins_tool_duration_seconds`` – Histogram (tool_name, username, pod)
     * ``mcp_jenkins_active_tool_calls`` – Gauge  (pod)
+    * ``mcp_jenkins_user_activity_total`` – Counter  (activity_type, pod, user_agent, username)
+    * ``mcp_jenkins_http_requests_total`` – Counter  (endpoint, method, pod, status_code)
+    * ``mcp_jenkins_http_request_duration_seconds`` – Histogram (endpoint, method, pod)
+    * ``mcp_jenkins_concurrent_requests`` – Gauge  (pod)
     """
 
     def __init__(self, pod_name: str | None = None) -> None:
@@ -105,6 +110,39 @@ class MCPJenkinsMetrics:
         )
 
         self._active_count: int = 0
+
+        # User activity events (matches mcp-atlassian pattern)
+        self.user_activity_total = _safe_metric(
+            Counter,
+            'mcp_jenkins_user_activity_total',
+            'User activity events across all pods',
+            ['activity_type', 'pod', 'user_agent', 'username'],
+        )
+
+        # HTTP request counters per endpoint/method/status
+        self.http_requests_total = _safe_metric(
+            Counter,
+            'mcp_jenkins_http_requests_total',
+            'HTTP requests per pod',
+            ['endpoint', 'method', 'pod', 'status_code'],
+        )
+
+        # HTTP request duration histogram
+        self.http_request_duration_seconds = _safe_metric(
+            Histogram,
+            'mcp_jenkins_http_request_duration_seconds',
+            'HTTP request duration in seconds',
+            ['endpoint', 'method', 'pod'],
+            buckets=_HTTP_REQUEST_DURATION_BUCKETS,
+        )
+
+        # Current concurrent HTTP requests
+        self.concurrent_requests = _safe_metric(
+            Gauge,
+            'mcp_jenkins_concurrent_requests',
+            'Current concurrent requests per pod',
+            ['pod'],
+        )
 
     # ------------------------------------------------------------------
     # Public helpers
@@ -159,6 +197,74 @@ class MCPJenkinsMetrics:
         self._active_count = max(0, self._active_count - 1)
         if self.active_tool_calls is not None:
             self.active_tool_calls.labels(pod=self.pod_name).set(self._active_count)
+
+    def record_user_activity(
+        self,
+        activity_type: str,
+        user_agent: str,
+        username: str,
+    ) -> None:
+        """Increment the user-activity counter for a single MCP tool invocation.
+
+        Args:
+            activity_type: The tool/action name (e.g. ``"get_build"``).
+            user_agent:    Value of the ``User-Agent`` HTTP header, or ``"unknown"``.
+            username:      Jenkins username, or ``"anonymous"``.
+        """
+        if not self._enabled:
+            return
+        if self.user_activity_total is not None:
+            self.user_activity_total.labels(
+                activity_type=activity_type,
+                pod=self.pod_name,
+                user_agent=user_agent,
+                username=username,
+            ).inc()
+
+    def record_http_request(
+        self,
+        endpoint: str,
+        method: str,
+        status_code: str,
+        duration: float,
+    ) -> None:
+        """Record a completed HTTP request.
+
+        Args:
+            endpoint:    The request path (e.g. ``"/mcp/"``).
+            method:      HTTP verb in upper-case (e.g. ``"POST"``).
+            status_code: HTTP status code as a string (e.g. ``"200"``).
+            duration:    Wall-clock time in seconds for the full request.
+        """
+        if not self._enabled:
+            return
+        if self.http_requests_total is not None:
+            self.http_requests_total.labels(
+                endpoint=endpoint,
+                method=method,
+                pod=self.pod_name,
+                status_code=status_code,
+            ).inc()
+        if self.http_request_duration_seconds is not None:
+            self.http_request_duration_seconds.labels(
+                endpoint=endpoint,
+                method=method,
+                pod=self.pod_name,
+            ).observe(duration)
+
+    def inc_concurrent(self) -> None:
+        """Increment the concurrent-requests gauge (call when an HTTP request arrives)."""
+        if not self._enabled:
+            return
+        if self.concurrent_requests is not None:
+            self.concurrent_requests.labels(pod=self.pod_name).inc()
+
+    def dec_concurrent(self) -> None:
+        """Decrement the concurrent-requests gauge (call when an HTTP request finishes)."""
+        if not self._enabled:
+            return
+        if self.concurrent_requests is not None:
+            self.concurrent_requests.labels(pod=self.pod_name).dec()
 
     def generate_metrics(self) -> tuple[str, str]:
         """Produce a Prometheus-formatted scrape payload.
