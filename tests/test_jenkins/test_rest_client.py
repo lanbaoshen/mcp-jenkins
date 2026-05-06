@@ -993,7 +993,7 @@ class TestItem:
             jenkins.build_item(
                 fullname='example-job',
                 build_type='buildWithParameters',
-                params={'param1': 'value1'},
+                data={'param1': 'value1'},
             )
             == 123
         )

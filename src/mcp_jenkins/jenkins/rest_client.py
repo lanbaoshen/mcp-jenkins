@@ -544,7 +544,7 @@ class Jenkins:
         *,
         fullname: str,
         build_type: Literal['build', 'buildWithParameters'],
-        params: dict | None = None,
+        data: dict | None = None,
     ) -> int:
         """Trigger a build for a specific item.
 
@@ -554,7 +554,7 @@ class Jenkins:
         Args:
             fullname: The fullname of the job.
             build_type: The type of build to trigger.
-            params: Optional parameters for the build.
+            data: The parameters to trigger the build with. Required if build_type is 'buildWithParameters'.
 
         Return:
             The queue item number of the job.
@@ -563,7 +563,7 @@ class Jenkins:
         response = self.request(
             'POST',
             rest_endpoint.ITEM_BUILD(folder=folder, name=name, build_type=build_type),
-            data=params,
+            data=data,
         )
 
         return int(response.headers.get('Location', None).strip('/').split('/')[-1])

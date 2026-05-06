@@ -89,19 +89,19 @@ async def build_item(
     ctx: Context,
     fullname: str,
     build_type: Literal['build', 'buildWithParameters'],
-    params: dict = None,
+    data: dict | None = None,
 ) -> int:
     """Build an item in Jenkins
 
     Args:
         fullname: The fullname of the item
-        params: Update the default parameters of the item.
+        data: The parameters to trigger the build with. Required if build_type is 'buildWithParameters'.
         build_type: If your item is configured with parameters, you must use 'buildWithParameters' as build_type.
 
     Returns:
         The queue item number of the item.
     """
-    return jenkins(ctx).build_item(fullname=fullname, build_type=build_type, params=params)
+    return jenkins(ctx).build_item(fullname=fullname, build_type=build_type, data=data)
 
 
 @mcp.tool(tags=['read'])
