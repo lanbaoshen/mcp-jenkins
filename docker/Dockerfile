@@ -155,7 +155,8 @@ COPY --chown=appuser:appuser src/ ./src/
 # Install only production dependencies using locked versions
 # --frozen: Fail if uv.lock is out of sync with pyproject.toml
 # --no-dev: Skip development dependencies for smaller, more secure image
-RUN uv sync --frozen --no-dev
+# --extra metrics: Include prometheus-client and uvicorn for /metrics endpoint
+RUN uv sync --frozen --no-dev --extra metrics
 
 # ============================================================================
 # Production stage with minimal dependencies and hardened security
@@ -183,14 +184,10 @@ USER appuser
 # This is informational only; actual port binding happens at runtime
 EXPOSE 9887
 
-# Production healthcheck that validates the MCP server module is importable
-# This verifies:
-# - Python environment is working
-# - All dependencies are correctly installed
-# - mcp_jenkins module can be loaded
-# For HTTP-based healthcheck in SSE/streamable-http mode, implement /health endpoint
+# Production healthcheck: verify the HTTP server is alive by polling /metrics
+# wget is available in Alpine and requires no extra packages
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python3 -c "import mcp_jenkins" || exit 1
+    CMD wget -qO- http://localhost:9887/metrics > /dev/null 2>&1 || exit 1
 
 # Default command (can be overridden at runtime)
 # Use the installed console script defined in pyproject.toml

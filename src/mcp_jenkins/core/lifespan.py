@@ -8,6 +8,7 @@ from loguru import logger
 from pydantic import BaseModel, ConfigDict
 
 from mcp_jenkins.jenkins import Jenkins
+from mcp_jenkins.utils.prometheus_metrics import initialize_metrics
 
 
 class LifespanContext(BaseModel):
@@ -31,6 +32,8 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
     jenkins_timeout = int(os.getenv('jenkins_timeout', '5'))
     jenkins_verify_ssl = os.getenv('jenkins_verify_ssl', 'true').lower() == 'true'
     jenkins_session_singleton = os.getenv('jenkins_session_singleton', 'true').lower() == 'true'
+
+    initialize_metrics()
 
     yield LifespanContext(
         jenkins_url=jenkins_url,

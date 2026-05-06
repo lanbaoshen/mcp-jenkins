@@ -2,9 +2,13 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import click
 from loguru import logger
+
+if TYPE_CHECKING:
+    pass
 
 try:
     LOG_DIR = Path.home() / '.mcp_jenkins'
@@ -14,6 +18,47 @@ except Exception as e:  # noqa: BLE001
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+async def _run_stdio(mcp: 'object', metrics_port: int) -> None:  # noqa: ANN001
+    """Run the MCP server over stdio, optionally serving /metrics on a side-car port."""
+    from fastmcp import FastMCP as _FastMCP
+
+    if metrics_port > 0:
+        import uvicorn
+        from starlette.applications import Starlette
+        from starlette.requests import Request
+        from starlette.responses import Response
+        from starlette.routing import Route
+
+        from mcp_jenkins.utils.prometheus_metrics import get_metrics, initialize_metrics
+
+        initialize_metrics()
+
+        async def metrics_handler(request: Request) -> Response:
+            m = get_metrics()
+            if m is None:
+                return Response(
+                    content='# Metrics not initialised yet.\n',
+                    media_type='text/plain; charset=utf-8',
+                    status_code=503,
+                )
+            content, content_type = m.generate_metrics()
+            return Response(content=content, media_type=content_type)
+
+        metrics_app = Starlette(routes=[Route('/metrics', metrics_handler, methods=['GET'])])
+        config = uvicorn.Config(metrics_app, host='0.0.0.0', port=metrics_port, log_level='warning')  # noqa: S104
+        server = uvicorn.Server(config)
+        # Run both the MCP stdio server and the metrics HTTP server concurrently
+        import asyncio as _asyncio
+
+        await _asyncio.gather(
+            cast(_FastMCP, mcp).run_async(transport='stdio'),
+            server.serve(),
+        )
+    else:
+        await cast(_FastMCP, mcp).run_async(transport='stdio')
+
 
 
 @click.command()
@@ -58,6 +103,15 @@ if sys.platform == 'win32':
     default=9887,
     help='Port to listen on for SSE or Streamable HTTP transport',
 )
+@click.option(
+    '--metrics-port',
+    default=0,
+    help=(
+        'Port for a standalone Prometheus /metrics HTTP server. '
+        'Only used with --transport stdio. '
+        'Set to 0 (default) to disable the standalone server.'
+    ),
+)
 def main(
     jenkins_url: str,
     jenkins_username: str,
@@ -70,6 +124,7 @@ def main(
     transport: str,
     host: str,
     port: int,
+    metrics_port: int,
 ) -> None:
     if jenkins_url:
         os.environ['jenkins_url'] = jenkins_url
@@ -91,7 +146,7 @@ def main(
         logger.warning('The [--tool-regex] option is deprecated and will be removed in future versions.')
 
     if transport == 'stdio':
-        asyncio.run(mcp.run_async(transport=transport))
+        asyncio.run(_run_stdio(mcp, metrics_port))
     elif transport in ('sse', 'streamable-http'):
         asyncio.run(mcp.run_async(transport=transport, host=host, port=port))
 

@@ -1,4 +1,4 @@
 from .lifespan import LifespanContext, lifespan
-from .middleware import AuthMiddleware
+from .middleware import AuthMiddleware, MetricsMiddleware
 
-__all__ = ['AuthMiddleware', 'lifespan', 'LifespanContext']
+__all__ = ['AuthMiddleware', 'lifespan', 'LifespanContext', 'MetricsMiddleware']

@@ -55,37 +55,25 @@ services:
     networks:
       - jenkins-network
 
-    # Uncomment ports for SSE/HTTP mode
-    # ports:
-    #   - "127.0.0.1:9887:9887"  # Bind to localhost only for additional security
+    # Expose MCP HTTP port (bind to localhost only for security)
+    ports:
+      - "127.0.0.1:9887:9887"
 
-    # Command for stdio mode with secrets
-    # Note: This example shows environment variable usage
-    # For production, modify application to read from /run/secrets/*
+    # streamable-http transport exposes /mcp and /metrics on port 9887
+    # Credentials are NOT passed as CLI args to avoid leaking in 'docker inspect';
+    # MCP clients must supply x-jenkins-url, x-jenkins-username, x-jenkins-password headers.
     command: [
-      "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
-      "--jenkins-username", "${JENKINS_USERNAME:-admin}",
-      "--jenkins-password", "${JENKINS_PASSWORD:-password}",
-      "--transport", "${TRANSPORT:-stdio}"
+      "--transport", "streamable-http",
+      "--port", "9887"
     ]
-
-    # Uncomment for SSE mode
-    # command: [
-    #   "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
-    #   "--jenkins-username", "${JENKINS_USERNAME:-admin}",
-    #   "--jenkins-password", "${JENKINS_PASSWORD:-password}",
-    #   "--transport", "sse",
-    #   "--port", "9887"
-    # ]
 
     # Restart policy for production reliability
     restart: unless-stopped
 
     # Health check configuration (matches Dockerfile healthcheck)
-    # NOTE: This only verifies the module loads, not Jenkins connectivity.
-    # For SSE/HTTP mode, consider implementing a /health endpoint in the app.
+    # Polls /metrics to verify the HTTP server is alive and prometheus-client is loaded
     healthcheck:
-      test: ["CMD-SHELL", "python3 -c 'import mcp_jenkins' || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9887/metrics > /dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 30s
@@ -133,7 +121,7 @@ services:
       "--jenkins-url", "${JENKINS_URL:-https://jenkins.example.com}",
       "--jenkins-username", "${JENKINS_USERNAME:-admin}",
       "--jenkins-password", "${JENKINS_PASSWORD:-password}",
-      "--transport", "sse",
+      "--transport", "streamable-http",
       "--port", "9887"
     ]
 
