@@ -3,6 +3,12 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class Artifact(BaseModel):
+    fileName: str
+    relativePath: str
+    displayPath: str | None = None
+
+
 class Build(BaseModel):
     number: int
     url: str

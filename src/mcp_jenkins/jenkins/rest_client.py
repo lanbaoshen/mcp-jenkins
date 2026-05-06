@@ -10,7 +10,7 @@ from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
-from mcp_jenkins.jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay
 from mcp_jenkins.jenkins.model.item import (
     FreeStyleProject,
     ItemType,
@@ -88,7 +88,12 @@ class Jenkins:
         logger.debug(f'Sending [{method}] request to {url}')
 
         response = self._session.request(
-            method=method, url=url, headers=headers, params=params, data=data, timeout=self.timeout,
+            method=method,
+            url=url,
+            headers=headers,
+            params=params,
+            data=data,
+            timeout=self.timeout,
         )
 
         # When a Jenkins HTTP session expires the cached CSRF crumb becomes
@@ -100,7 +105,12 @@ class Jenkins:
             self._crumb_header = None
             headers.update(self.crumb_header)
             response = self._session.request(
-                method=method, url=url, headers=headers, params=params, data=data, timeout=self.timeout,
+                method=method,
+                url=url,
+                headers=headers,
+                params=params,
+                data=data,
+                timeout=self.timeout,
             )
 
         response.raise_for_status()
@@ -403,6 +413,57 @@ class Jenkins:
         )
         return response.json()
 
+    def get_build_artifacts(self, *, fullname: str, number: int) -> list[Artifact]:
+        """Get the list of artifacts from a specific build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+
+        Returns:
+            A list of Artifact objects.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request(
+            'GET',
+            rest_endpoint.BUILD_ARTIFACTS(folder=folder, name=name, number=number),
+        )
+        return [Artifact.model_validate(a) for a in response.json().get('artifacts', [])]
+
+    def get_build_artifact(self, *, fullname: str, number: int, relative_path: str) -> bytes:
+        """Download the content of a specific artifact from a build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            relative_path: The relative path of the artifact.
+
+        Returns:
+            The artifact content as bytes.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request(
+            'GET',
+            rest_endpoint.BUILD_ARTIFACT(folder=folder, name=name, number=number, relative_path=relative_path),
+        )
+        return response.content
+
+    def get_build_artifact_url(self, *, fullname: str, number: int, relative_path: str) -> str:
+        """Get the direct URL of a specific artifact from a build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            relative_path: The relative path of the artifact.
+
+        Returns:
+            The direct URL of the artifact as a string.
+        """
+        folder, name = self._parse_fullname(fullname)
+        return self.endpoint_url(
+            rest_endpoint.BUILD_ARTIFACT(folder=folder, name=name, number=number, relative_path=relative_path),
+        )
+
     def get_running_builds(self) -> list[Build]:
         """Get all running builds across all nodes.
 
@@ -626,7 +687,9 @@ class Jenkins:
                             'requiredCoreVersion': required_core,
                             'jenkinsVersion': jenkins_version,
                             'severity': 'error',
-                            'message': f'Plugin requires Jenkins {required_core}, but current version is {jenkins_version}',
+                            'message': (
+                                f'Plugin requires Jenkins {required_core}, but current version is {jenkins_version}'
+                            ),
                         }
                     )
 
@@ -685,7 +748,10 @@ class Jenkins:
                                     'requiredVersion': dep_version,
                                     'installedVersion': installed_ver,
                                     'severity': 'info',
-                                    'message': f'Optional dependency {dep_name} version mismatch: required {dep_version}, installed {installed_ver}',
+                                    'message': (
+                                        f'Optional dependency {dep_name} version mismatch: '
+                                        f'required {dep_version}, installed {installed_ver}'
+                                    ),
                                 }
                             )
                         else:
@@ -697,7 +763,10 @@ class Jenkins:
                                     'requiredVersion': dep_version,
                                     'installedVersion': installed_ver,
                                     'severity': 'error',
-                                    'message': f'Dependency {dep_name} version mismatch: required {dep_version}, installed {installed_ver}',
+                                    'message': (
+                                        f'Dependency {dep_name} version mismatch: '
+                                        f'required {dep_version}, installed {installed_ver}'
+                                    ),
                                 }
                             )
 
@@ -800,7 +869,7 @@ class Jenkins:
         edges = []
         visited = set()
 
-        def traverse(name: str):
+        def traverse(name: str) -> None:
             if name in visited:
                 return
             visited.add(name)
