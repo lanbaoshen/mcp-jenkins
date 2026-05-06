@@ -96,12 +96,12 @@ async def test_build_item(mock_jenkins, mocker):
     await item.build_item(
         mocker.Mock(),
         fullname='job1',
-        params={'param1': 'value1'},
+        data={'param1': 'value1'},
         build_type='buildWithParameters',
     )
 
     mock_jenkins.build_item.assert_called_once_with(
-        fullname='job1', params={'param1': 'value1'}, build_type='buildWithParameters'
+        fullname='job1', data={'param1': 'value1'}, build_type='buildWithParameters'
     )
 
 
