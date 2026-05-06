@@ -1002,8 +1002,8 @@ class TestItem:
             method='POST',
             url='https://example.com/job/example-job/buildWithParameters',
             headers={'Jenkins-Crumb': 'crumb-value'},
-            params={'param1': 'value1'},
-            data=None,
+            params=None,
+            data={'param1': 'value1'},
             timeout=75,
         )
 

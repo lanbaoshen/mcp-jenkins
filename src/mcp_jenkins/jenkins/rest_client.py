@@ -563,7 +563,7 @@ class Jenkins:
         response = self.request(
             'POST',
             rest_endpoint.ITEM_BUILD(folder=folder, name=name, build_type=build_type),
-            params=params,
+            data=params,
         )
 
         return int(response.headers.get('Location', None).strip('/').split('/')[-1])
