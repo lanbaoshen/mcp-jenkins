@@ -2,7 +2,7 @@ import pytest
 from requests import HTTPError
 
 from mcp_jenkins.jenkins import Jenkins
-from mcp_jenkins.jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay
 from mcp_jenkins.jenkins.model.item import (
     Folder,
     FreeStyleProject,
@@ -754,6 +754,81 @@ class TestBuild:
                 timestamp=1767975558000,
             )
         ]
+
+    def test_get_build_artifacts(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'artifacts': [
+                    {
+                        'fileName': 'index.html',
+                        'relativePath': 'playwright-report/index.html',
+                        'displayPath': 'playwright-report/index.html',
+                    },
+                    {
+                        'fileName': 'trace.zip',
+                        'relativePath': 'trace.zip',
+                        'displayPath': 'trace.zip',
+                    },
+                ]
+            }
+        )
+
+        assert jenkins.get_build_artifacts(fullname='example-job', number=1) == [
+            Artifact(
+                fileName='index.html',
+                relativePath='playwright-report/index.html',
+                displayPath='playwright-report/index.html',
+            ),
+            Artifact(fileName='trace.zip', relativePath='trace.zip', displayPath='trace.zip'),
+        ]
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/example-job/1/api/json?tree=artifacts[fileName,relativePath,displayPath]',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_get_build_artifacts_empty(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'artifacts': []})
+
+        assert jenkins.get_build_artifacts(fullname='example-job', number=1) == []
+
+    def test_get_build_artifact(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(content=b'<html>report</html>')
+
+        result = jenkins.get_build_artifact(
+            fullname='example-job', number=1, relative_path='playwright-report/index.html'
+        )
+        assert result == b'<html>report</html>'
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/example-job/1/artifact/playwright-report/index.html',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_get_build_artifact_binary(self, jenkins, mock_session, mocker):
+        binary_content = bytes(range(256))
+        mock_session.request.return_value = mocker.Mock(content=binary_content)
+
+        result = jenkins.get_build_artifact(fullname='example-job', number=1, relative_path='trace.zip')
+        assert result == binary_content
+
+    def test_get_build_artifact_url(self, jenkins):
+        url = jenkins.get_build_artifact_url(
+            fullname='example-job', number=1, relative_path='playwright-report/index.html'
+        )
+        assert url == 'https://example.com/job/example-job/1/artifact/playwright-report/index.html'
+
+    def test_get_build_artifact_url_nested_job(self, jenkins):
+        url = jenkins.get_build_artifact_url(fullname='folder/example-job', number=42, relative_path='trace.zip')
+        assert url == 'https://example.com/job/folder/job/example-job/42/artifact/trace.zip'
 
 
 class TestItem:

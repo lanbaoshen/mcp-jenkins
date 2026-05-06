@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_jenkins.jenkins.model.build import Build, BuildReplay
+from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay
 from mcp_jenkins.server import build
 
 
@@ -115,3 +115,86 @@ async def test_get_build_parameters(mock_jenkins, mocker):
 async def test_stop_build(mock_jenkins, mocker):
     await build.stop_build(mocker.Mock(), fullname='job1', number=1)
     mock_jenkins.stop_build.assert_called_once_with(fullname='job1', number=1)
+
+
+@pytest.mark.asyncio
+async def test_get_all_build_artifacts(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_artifacts.return_value = [
+        Artifact(
+            fileName='index.html',
+            relativePath='playwright-report/index.html',
+            displayPath='playwright-report/index.html',
+        ),
+        Artifact(fileName='trace.zip', relativePath='trace.zip', displayPath='trace.zip'),
+    ]
+
+    assert await build.get_all_build_artifacts(mocker.Mock(), fullname='job1') == [
+        {
+            'fileName': 'index.html',
+            'relativePath': 'playwright-report/index.html',
+            'displayPath': 'playwright-report/index.html',
+        },
+        {'fileName': 'trace.zip', 'relativePath': 'trace.zip', 'displayPath': 'trace.zip'},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_all_build_artifacts_with_number(mock_jenkins, mocker):
+    mock_jenkins.get_build_artifacts.return_value = []
+
+    assert await build.get_all_build_artifacts(mocker.Mock(), fullname='job1', number=5) == []
+    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_build_artifacts.assert_called_once_with(fullname='job1', number=5)
+
+
+@pytest.mark.asyncio
+async def test_get_build_artifact_text(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_artifact.return_value = b'<html>report</html>'
+
+    result = await build.get_build_artifact(
+        mocker.Mock(), fullname='job1', relative_path='playwright-report/index.html'
+    )
+    assert result == {'content': '<html>report</html>', 'encoding': 'utf-8'}
+
+
+@pytest.mark.asyncio
+async def test_get_build_artifact_binary(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_artifact.return_value = bytes(range(256))
+
+    result = await build.get_build_artifact(mocker.Mock(), fullname='job1', relative_path='trace.zip')
+    assert result['encoding'] == 'base64'
+    import base64
+
+    assert base64.b64decode(result['content']) == bytes(range(256))
+
+
+@pytest.mark.asyncio
+async def test_get_build_artifact_with_number(mock_jenkins, mocker):
+    mock_jenkins.get_build_artifact.return_value = b'data'
+
+    result = await build.get_build_artifact(mocker.Mock(), fullname='job1', relative_path='file.txt', number=3)
+    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_build_artifact.assert_called_once_with(fullname='job1', number=3, relative_path='file.txt')
+    assert result == {'content': 'data', 'encoding': 'utf-8'}
+
+
+@pytest.mark.asyncio
+async def test_get_build_artifact_url(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_artifact_url.return_value = 'https://jenkins.example.com/job/job1/1/artifact/trace.zip'
+
+    result = await build.get_build_artifact_url(mocker.Mock(), fullname='job1', relative_path='trace.zip')
+    assert result == 'https://jenkins.example.com/job/job1/1/artifact/trace.zip'
+
+
+@pytest.mark.asyncio
+async def test_get_build_artifact_url_with_number(mock_jenkins, mocker):
+    mock_jenkins.get_build_artifact_url.return_value = 'https://jenkins.example.com/job/job1/5/artifact/report.html'
+
+    result = await build.get_build_artifact_url(mocker.Mock(), fullname='job1', relative_path='report.html', number=5)
+    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_build_artifact_url.assert_called_once_with(fullname='job1', number=5, relative_path='report.html')
+    assert result == 'https://jenkins.example.com/job/job1/5/artifact/report.html'
