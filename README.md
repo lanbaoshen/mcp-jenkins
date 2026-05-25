@@ -105,6 +105,27 @@ uvx mcp-jenkins \
   --transport sse
 ```
 
+## Health Check Endpoint
+
+When running with `--transport streamable-http` or `--transport sse`, the server exposes a plain HTTP liveness endpoint:
+
+```
+GET /healthz  ->  200 OK
+```
+
+It always returns `200` and bypasses the `x-jenkins-*` auth headers, so it is safe to use directly as a Kubernetes liveness/readiness probe without any Jenkins credentials. Example probe:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 9887
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+Note: this is a liveness check only — it does not verify connectivity to the upstream Jenkins server.
+
 ## Available Tools
 | Tool                       | Description                                         |
 |----------------------------|-----------------------------------------------------|
