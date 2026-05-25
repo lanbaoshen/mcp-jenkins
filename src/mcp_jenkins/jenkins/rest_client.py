@@ -218,6 +218,22 @@ class Jenkins:
         response = self.request('GET', rest_endpoint.QUEUE_ITEM(id=id, depth=depth))
         return QueueItem.model_validate(response.json())
 
+    def get_queue_item_raw(self, *, id: int) -> dict:
+        """Get a queue item by its ID as raw JSON dict.
+
+        Use this when you need fields not present in the QueueItem model,
+        such as the 'build' field that appears when a queue item is
+        assigned to a running build.
+
+        Args:
+            id: The ID of the queue item.
+
+        Returns:
+            A dictionary representing the queue item as returned by Jenkins.
+        """
+        response = self.request('GET', rest_endpoint.QUEUE_ITEM(id=id, depth=1))
+        return response.json()
+
     def cancel_queue_item(self, *, id: int) -> None:
         """Cancel a queue item by its ID.
 
@@ -342,6 +358,34 @@ class Jenkins:
 
         response.close()
         return '\n'.join(matched)
+
+    def get_build_console_tail(
+        self,
+        *,
+        fullname: str,
+        number: int,
+        n_lines: int = 200,
+    ) -> str:
+        """Get the last N lines of a build's console output.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            n_lines: Number of lines to return from the end (default: 200).
+
+        Returns:
+            Last N lines of console output as a string.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self._session.get(
+            self.endpoint_url(rest_endpoint.BUILD_CONSOLE_OUTPUT(folder=folder, name=name, number=number)),
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+
+        all_lines = response.text.split('\n')
+        tail_lines = all_lines[-n_lines:] if len(all_lines) >= n_lines else all_lines
+        return '\n'.join(tail_lines)
 
     def stop_build(self, *, fullname: str, number: int) -> None:
         """Stop a running Jenkins build.
