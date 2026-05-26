@@ -86,3 +86,21 @@ class TestAuthMiddleware:
         await middleware(scope, mock_receive, mock_send)
 
         mock_app.assert_called_once_with(scope, mock_receive, mock_send)
+
+    @pytest.mark.asyncio
+    async def test_call_healthz_bypass(self, mocker):
+        mock_app, mock_receive, mock_send = (
+            mocker.AsyncMock(),
+            mocker.AsyncMock(),
+            mocker.AsyncMock(),
+        )
+        middleware = AuthMiddleware(mock_app)
+
+        scope = {
+            'type': 'http',
+            'path': '/healthz',
+        }
+
+        await middleware(scope, mock_receive, mock_send)
+
+        mock_app.assert_called_once_with(scope, mock_receive, mock_send)

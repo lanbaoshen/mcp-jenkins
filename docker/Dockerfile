@@ -188,7 +188,8 @@ EXPOSE 9887
 # - Python environment is working
 # - All dependencies are correctly installed
 # - mcp_jenkins module can be loaded
-# For HTTP-based healthcheck in SSE/streamable-http mode, implement /health endpoint
+# For HTTP-based healthcheck in SSE/streamable-http mode, the application exposes
+# GET /healthz endpoint (always returns 200)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python3 -c "import mcp_jenkins" || exit 1
 
