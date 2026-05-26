@@ -43,3 +43,5 @@ BUILD_ARTIFACTS = RestEndpoint('{folder}job/{name}/{number}/api/json?tree=artifa
 
 PLUGIN_LIST = RestEndpoint('pluginManager/api/json?depth={depth}')
 PLUGIN_LIST_TREE = RestEndpoint('pluginManager/api/json?tree=plugins[{tree}]')
+
+SCRIPT_TEXT = RestEndpoint('scriptText')

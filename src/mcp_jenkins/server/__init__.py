@@ -40,4 +40,4 @@ async def healthz(_request: Request) -> PlainTextResponse:
 
 # Import tool modules to register them with the MCP server
 # This must happen after mcp is created so the @mcp.tool() decorators can reference it
-from mcp_jenkins.server import build, item, node, plugin, queue, view  # noqa: F401, E402
+from mcp_jenkins.server import build, item, node, plugin, queue, view, script  # noqa: F401, E402
