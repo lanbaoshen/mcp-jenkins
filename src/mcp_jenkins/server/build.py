@@ -1,4 +1,6 @@
+import asyncio
 import base64
+import time
 
 from fastmcp import Context
 
@@ -190,3 +192,70 @@ async def get_build_artifact_url(ctx: Context, fullname: str, relative_path: str
         number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
 
     return jenkins(ctx).get_build_artifact_url(fullname=fullname, number=number, relative_path=relative_path)
+
+
+@mcp.tool(tags=['read'])
+async def get_build_console_tail(
+    ctx: Context,
+    fullname: str,
+    number: int,
+    n_lines: int = 200,
+) -> str:
+    """Get the last N lines of a build's console output.
+
+    Args:
+        fullname: The fullname of the job
+        number: The build number
+        n_lines: Number of lines from the end (default: 200)
+
+    Returns:
+        Last N lines of console output
+    """
+    return jenkins(ctx).get_build_console_tail(fullname=fullname, number=number, n_lines=n_lines)
+
+
+@mcp.tool(tags=['read'])
+async def wait_for_build_completion(
+    ctx: Context,
+    fullname: str,
+    number: int,
+    timeout: int = 1800,
+    poll_interval: int = 30,
+) -> dict:
+    """Block until a build completes or timeout.
+
+    Server-side polling — agent calls once, gets result when done or timeout.
+
+    Args:
+        fullname: The fullname of the job
+        number: The build number
+        timeout: Max seconds to wait (default: 1800)
+        poll_interval: Seconds between polls (default: 30)
+
+    Returns:
+        Dict with status, build_number, duration_ms, and building fields.
+    """
+    terminal_states = {'SUCCESS', 'FAILURE', 'ABORTED', 'UNSTABLE'}
+    start_time = time.time()
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed > timeout:
+            return {
+                'status': 'TIMEOUT',
+                'build_number': number,
+                'elapsed_seconds': int(elapsed),
+            }
+
+        build = jenkins(ctx).get_build(fullname=fullname, number=number)
+        build_dict = build.model_dump(exclude_none=True)
+
+        if build_dict.get('result') in terminal_states or not build_dict.get('building', True):
+            return {
+                'status': build_dict.get('result', 'UNKNOWN'),
+                'build_number': build_dict.get('number', number),
+                'duration_ms': build_dict.get('duration', 0),
+                'building': build_dict.get('building', False),
+            }
+
+        await asyncio.sleep(poll_interval)
