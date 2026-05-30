@@ -37,7 +37,7 @@ FROM python:3.14-alpine AS base
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL org.opencontainers.image.title="MCP Jenkins" \
       org.opencontainers.image.description="Model Context Protocol server for Jenkins integration with AI language models" \
-      org.opencontainers.image.version="3.3.0" \
+      org.opencontainers.image.version="3.4.0" \
       org.opencontainers.image.vendor="lanbaoshen" \
       org.opencontainers.image.authors="lanbaoshen@icloud.com" \
       org.opencontainers.image.licenses="MIT" \
@@ -188,7 +188,8 @@ EXPOSE 9887
 # - Python environment is working
 # - All dependencies are correctly installed
 # - mcp_jenkins module can be loaded
-# For HTTP-based healthcheck in SSE/streamable-http mode, implement /health endpoint
+# For HTTP-based healthcheck in SSE/streamable-http mode, the application exposes
+# GET /healthz endpoint (always returns 200)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python3 -c "import mcp_jenkins" || exit 1
 

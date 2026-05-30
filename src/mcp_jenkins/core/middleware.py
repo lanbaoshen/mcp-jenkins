@@ -14,6 +14,11 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Bypass auth handling for the health probe so kubernetes can poll it without headers
+        if scope.get('path') == '/healthz':
+            await self.app(scope, receive, send)
+            return
+
         # According to ASGI spec, middleware should copy scope when modifying it
         scope_copy: Scope = dict(scope)
 

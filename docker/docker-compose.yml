@@ -83,7 +83,7 @@ services:
 
     # Health check configuration (matches Dockerfile healthcheck)
     # NOTE: This only verifies the module loads, not Jenkins connectivity.
-    # For SSE/HTTP mode, consider implementing a /health endpoint in the app.
+    # For SSE/streamable-http mode, the application exposes GET /healthz endpoint
     healthcheck:
       test: ["CMD-SHELL", "python3 -c 'import mcp_jenkins' || exit 1"]
       interval: 30s
@@ -103,7 +103,7 @@ services:
     labels:
       - "com.mcp-jenkins.service=production"
       - "com.mcp-jenkins.security=hardened"
-      - "com.mcp-jenkins.version=${VERSION:-3.3.0}"
+      - "com.mcp-jenkins.version=${VERSION:-3.4.0}"
 
   # Development service (less security restrictions for debugging)
   mcp-jenkins-dev:

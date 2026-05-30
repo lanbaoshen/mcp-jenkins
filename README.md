@@ -105,6 +105,27 @@ uvx mcp-jenkins \
   --transport sse
 ```
 
+## Health Check Endpoint
+
+When running with `--transport streamable-http` or `--transport sse`, the server exposes a plain HTTP liveness endpoint:
+
+```
+GET /healthz  ->  200 OK
+```
+
+It always returns `200` and bypasses the `x-jenkins-*` auth headers, so it is safe to use directly as a Kubernetes liveness/readiness probe without any Jenkins credentials. Example probe:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 9887
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+Note: this is a liveness check only — it does not verify connectivity to the upstream Jenkins server.
+
 ## Available Tools
 | Tool                       | Description                                         |
 |----------------------------|-----------------------------------------------------|
@@ -132,6 +153,13 @@ uvx mcp-jenkins \
 | `get_build_artifact_url`   | Get the direct URL of an artifact from a specific build. |
 | `get_view`                 | Get a specific view by name.                        |
 | `get_all_views`            | Get the configuration of a specific view.           |
+| `get_all_plugins`          | Get all installed plugins.                        |
+| `get_plugin`              | Get a specific plugin by short name.              |
+| `get_plugins_with_problems` | Get plugins with problems (missing dependencies, version mismatch, etc.). |
+| `get_plugins_with_backup`   | Get plugins that can be downgraded.               |
+| `get_plugins_with_updates` | Get plugins that have available updates.          |
+| `get_plugin_dependency_graph` | Get dependency graph for a plugin in Graphviz format. |
+| `run_groovy_script`       | Execute an arbitrary Groovy script on Jenkins.     |
 
 
 ## Contributing

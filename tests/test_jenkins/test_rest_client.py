@@ -1362,3 +1362,33 @@ class TestPlugin:
         version_issue = next((p for p in problems if p['problem'] == 'version_mismatch_optional'), None)
         assert version_issue is not None
         assert version_issue['dependency'] == 'optional-dep'
+
+    def test_run_script(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(text='Result: script output', raise_for_status=mocker.Mock())
+
+        result = jenkins.run_script('println("test")')
+
+        assert result == 'script output'
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/scriptText',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            data={'script': b'println("test")'},
+            params=None,
+            timeout=75,
+        )
+
+    def test_run_script_without_result_prefix(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(text='direct output', raise_for_status=mocker.Mock())
+
+        result = jenkins.run_script('return "direct"')
+
+        assert result == 'direct output'
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/scriptText',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            data={'script': b'return "direct"'},
+            params=None,
+            timeout=75,
+        )

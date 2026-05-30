@@ -940,3 +940,20 @@ class Jenkins:
         traverse(short_name)
 
         return {'nodes': nodes, 'edges': edges}
+
+    def run_script(self, script: str) -> str:  # noqa: N802
+        """Execute a Groovy script on Jenkins.
+
+        Args:
+            script: The Groovy script code to execute.
+
+        Returns:
+            The result of the script execution.
+        """
+        response = self.request('POST', rest_endpoint.SCRIPT_TEXT, data={'script': script.encode('utf-8')})
+
+        result = response.text
+        result_prefix = 'Result: '
+        if result.startswith(result_prefix):
+            return result[len(result_prefix) :].rstrip('\n')
+        return result

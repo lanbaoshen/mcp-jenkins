@@ -3,6 +3,8 @@ from typing import Any, Literal
 from fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.middleware import Middleware as ASGIMiddleware
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 from mcp_jenkins.core import AuthMiddleware, LifespanContext, lifespan
 
@@ -29,6 +31,13 @@ class JenkinsMCP(FastMCP[LifespanContext]):
 
 mcp = JenkinsMCP('mcp-jenkins', lifespan=lifespan)
 
+
+@mcp.custom_route('/healthz', methods=['GET'])
+async def healthz(_request: Request) -> PlainTextResponse:
+    """Liveness probe endpoint. Always returns 200 for kubernetes health checks."""
+    return PlainTextResponse('OK', status_code=200)
+
+
 # Import tool modules to register them with the MCP server
 # This must happen after mcp is created so the @mcp.tool() decorators can reference it
-from mcp_jenkins.server import build, item, node, plugin, queue, view  # noqa: F401, E402
+from mcp_jenkins.server import build, item, node, plugin, queue, view, script  # noqa: F401, E402
