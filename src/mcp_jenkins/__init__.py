@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 import click
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
 try:
@@ -19,7 +19,9 @@ if sys.platform == 'win32':
 
 def _load_env_file(ctx: click.Context, param: click.Parameter, value: str | None) -> str | None:  # noqa: ARG001
     # Eager so JENKINS_* variables from the file are visible to the other options' envvar lookups below.
-    load_dotenv(dotenv_path=value or None)
+    # find_dotenv(usecwd=True) is used instead of load_dotenv()'s own discovery, which locates the
+    # .env file relative to the caller's source file rather than the current working directory.
+    load_dotenv(dotenv_path=value or find_dotenv(usecwd=True))
     return value
 
 
