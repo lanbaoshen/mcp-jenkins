@@ -33,6 +33,7 @@ uvx mcp-jenkins --transport streamable-http
 
 | Argument                                                     | Description                                                                                                     | Required |
 |--------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|----------|
+| `--env-file`                                                 | Path to a `.env` file to load configuration from. See [Environment Variables / .env file](#environment-variables--env-file) below. | No       |
 | `--jenkins-url`                                              | The URL of the Jenkins server. (Http app can set it via headers `x-jenkins-url`)                                | No       |
 | `--jenkins-username`                                         | The username for Jenkins authentication. (Http app can set it via headers `x-jenkins-username`)                 | No       |
 | `--jenkins-password`                                         | The password or API token for Jenkins authentication. (Http app can set it via headers `x-jenkins-password`)    | No       |
@@ -43,6 +44,30 @@ uvx mcp-jenkins --transport streamable-http
 | `--transport`                                                | Transport method to use for communication. Options are `stdio`, `sse` or `streamable-http`. Default is `stdio`. | No       |
 | `--host`                                                     | Host address for `streamable-http` transport. Default is `0.0.0.0`                                              | No       |
 | `--port`                                                     | Port number for `streamable-http` transport. Default is `9887`.                                                 | No       |
+
+## Environment Variables / .env file
+
+Instead of passing credentials on the command line, you can set them as environment variables, or put them in a `.env` file:
+
+```
+JENKINS_URL=https://jenkins.example.com
+JENKINS_USERNAME=alice
+JENKINS_PASSWORD=xxxx
+JENKINS_TIMEOUT=5
+JENKINS_VERIFY_SSL=true
+```
+
+If a `.env` file is present in the current directory (or a parent directory), it is loaded automatically — no flag needed:
+```shell
+uvx mcp-jenkins --transport streamable-http
+```
+
+To load a `.env` file from a specific location, use `--env-file`:
+```shell
+uvx mcp-jenkins --env-file /path/to/.env --transport streamable-http
+```
+
+Values already set in the real environment take precedence over the `.env` file, and any `--jenkins-*` CLI flag takes precedence over both.
 
 ## Configuration and Usage
 

@@ -839,6 +839,7 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "fastmcp" },
     { name = "loguru" },
+    { name = "python-dotenv" },
     { name = "requests" },
 ]
 
@@ -856,6 +857,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.14.3" },
     { name = "fastmcp", specifier = ">=3.0.2,<4" },
     { name = "loguru", specifier = ">=0.7.3" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "requests", specifier = ">=2.32.5" },
 ]
 
