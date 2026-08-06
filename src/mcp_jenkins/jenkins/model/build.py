@@ -26,3 +26,16 @@ class Build(BaseModel):
 
 class BuildReplay(BaseModel):
     scripts: list[str]
+
+
+class PendingInput(BaseModel):
+    id: str
+
+    message: str | None = None
+    proceedText: str | None = None
+
+    inputs: list[dict] = []
+
+    proceedUrl: str | None = None
+    abortUrl: str | None = None
+    redirectApprovalUrl: str | None = None

@@ -1,6 +1,7 @@
 import pytest
 
-from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay
+from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay, PendingInput
+from mcp_jenkins.jenkins.model.item import Folder, Job
 from mcp_jenkins.server import build
 
 
@@ -115,6 +116,161 @@ async def test_get_build_parameters(mock_jenkins, mocker):
 async def test_stop_build(mock_jenkins, mocker):
     await build.stop_build(mocker.Mock(), fullname='job1', number=1)
     mock_jenkins.stop_build.assert_called_once_with(fullname='job1', number=1)
+
+
+@pytest.mark.asyncio
+async def test_get_pending_inputs(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_pending_inputs.return_value = [
+        PendingInput(
+            id='Deploy',
+            message='Deploy to prod?',
+            proceedText='Deploy',
+            inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
+        )
+    ]
+
+    assert await build.get_pending_inputs(mocker.Mock(), fullname='job1') == [
+        {
+            'id': 'Deploy',
+            'message': 'Deploy to prod?',
+            'proceedText': 'Deploy',
+            'inputs': [{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
+        }
+    ]
+    mock_jenkins.get_build_pending_inputs.assert_called_once_with(fullname='job1', number=1)
+
+
+@pytest.mark.asyncio
+async def test_get_pending_inputs_with_number(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+
+    assert await build.get_pending_inputs(mocker.Mock(), fullname='job1', number=5) == [{'id': 'Deploy', 'inputs': []}]
+    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_build_pending_inputs.assert_called_once_with(fullname='job1', number=5)
+
+
+@pytest.mark.asyncio
+async def test_get_pending_inputs_empty(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = []
+
+    assert await build.get_pending_inputs(mocker.Mock(), fullname='job1', number=5) == []
+
+
+@pytest.mark.asyncio
+async def test_get_pending_inputs_no_build(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value = Job(_class='hudson.model.Job', name='job1', url='url', color='notbuilt')
+
+    with pytest.raises(ValueError, match='No build found for job: job1'):
+        await build.get_pending_inputs(mocker.Mock(), fullname='job1')
+
+
+@pytest.mark.asyncio
+async def test_submit_input_auto_resolves_number_and_input_id(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+
+    assert await build.submit_input(mocker.Mock(), fullname='job1') == {
+        'fullname': 'job1',
+        'number': 1,
+        'inputId': 'Deploy',
+        'action': 'proceed',
+    }
+    mock_jenkins.submit_build_input.assert_called_once_with(
+        fullname='job1', number=1, input_id='Deploy', action='proceedEmpty', parameters=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_submit_input_with_parameters(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+
+    await build.submit_input(mocker.Mock(), fullname='job1', parameters={'APPROVE': True, 'TARGET': 'prod'})
+
+    mock_jenkins.submit_build_input.assert_called_once_with(
+        fullname='job1',
+        number=1,
+        input_id='Deploy',
+        action='proceed',
+        parameters={'APPROVE': True, 'TARGET': 'prod'},
+    )
+
+
+@pytest.mark.asyncio
+async def test_submit_input_with_explicit_input_id(mock_jenkins, mocker):
+    await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy')
+
+    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_build_pending_inputs.assert_not_called()
+    mock_jenkins.submit_build_input.assert_called_once_with(
+        fullname='job1', number=7, input_id='Deploy', action='proceedEmpty', parameters=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_submit_input_abort(mock_jenkins, mocker):
+    assert await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy', action='abort') == {
+        'fullname': 'job1',
+        'number': 7,
+        'inputId': 'Deploy',
+        'action': 'abort',
+    }
+    mock_jenkins.submit_build_input.assert_called_once_with(
+        fullname='job1', number=7, input_id='Deploy', action='abort', parameters=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_submit_input_abort_with_parameters(mock_jenkins, mocker):
+    with pytest.raises(ValueError, match='cannot be combined'):
+        await build.submit_input(
+            mocker.Mock(), fullname='job1', number=7, input_id='Deploy', action='abort', parameters={'A': 'b'}
+        )
+
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_no_pending_inputs(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = []
+
+    with pytest.raises(ValueError, match='No pending input for job1 #1'):
+        await build.submit_input(mocker.Mock(), fullname='job1', number=1)
+
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_multiple_pending_inputs(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy'), PendingInput(id='Rollback')]
+
+    with pytest.raises(ValueError, match='Multiple pending inputs') as exc_info:
+        await build.submit_input(mocker.Mock(), fullname='job1', number=1)
+
+    assert 'Deploy' in str(exc_info.value)
+    assert 'Rollback' in str(exc_info.value)
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_no_build(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value = Job(_class='hudson.model.Job', name='job1', url='url', color='notbuilt')
+
+    with pytest.raises(ValueError, match='No build found for job: job1'):
+        await build.submit_input(mocker.Mock(), fullname='job1')
+
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_on_item_without_last_build(mock_jenkins, mocker):
+    mock_jenkins.get_item.return_value = Folder(_class='com.cloudbees...Folder', name='folder1', url='url', jobs=[])
+
+    with pytest.raises(ValueError, match='No build found for job: folder1'):
+        await build.submit_input(mocker.Mock(), fullname='folder1')
+
+    mock_jenkins.submit_build_input.assert_not_called()
 
 
 @pytest.mark.asyncio

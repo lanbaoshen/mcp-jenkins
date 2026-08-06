@@ -1,6 +1,8 @@
+import json
 import re
 from functools import reduce
 from typing import Literal
+from urllib.parse import quote
 
 import requests
 from bs4 import BeautifulSoup
@@ -10,7 +12,7 @@ from requests.auth import HTTPBasicAuth
 from requests.exceptions import HTTPError
 
 from mcp_jenkins.jenkins import rest_endpoint
-from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay
+from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay, PendingInput
 from mcp_jenkins.jenkins.model.item import (
     FreeStyleProject,
     ItemType,
@@ -162,8 +164,6 @@ class Jenkins:
         Returns:
             The Jenkins URL path segment (e.g. "view/frontend/view/nightly").
         """
-        from urllib.parse import quote
-
         parts = [quote(p.strip(), safe='') for p in view_path.split('/') if p.strip()]
         return '/'.join(f'view/{p}' for p in parts)
 
@@ -352,6 +352,81 @@ class Jenkins:
         """
         folder, name = self._parse_fullname(fullname)
         self.request('POST', rest_endpoint.BUILD_STOP(folder=folder, name=name, number=number))
+
+    def get_build_pending_inputs(self, *, fullname: str, number: int) -> list[PendingInput]:
+        """Get the pending input steps of a specific build.
+
+        A pipeline that is "Paused for Input" is waiting on an input step. Requires the
+        pipeline-rest-api plugin, which is bundled with pipeline-stage-view and serves the wfapi
+        endpoints.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+
+        Returns:
+            A list of PendingInput objects, empty when the build is not waiting for input.
+
+        Raises:
+            ValueError: If the wfapi pending input endpoint is not available.
+        """
+        folder, name = self._parse_fullname(fullname)
+
+        try:
+            response = self.request(
+                'GET',
+                rest_endpoint.BUILD_PENDING_INPUTS(folder=folder, name=name, number=number),
+            )
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                msg = (
+                    f'No wfapi pending input endpoint for {fullname} #{number}. Either the build does not '
+                    f'exist, the job is not a pipeline, or the pipeline-rest-api plugin (bundled with '
+                    f'pipeline-stage-view) is not installed. Pass input_id explicitly to skip discovery.'
+                )
+                raise ValueError(msg) from e
+            raise
+
+        return [PendingInput.model_validate(pending_input) for pending_input in response.json()]
+
+    def submit_build_input(
+        self,
+        *,
+        fullname: str,
+        number: int,
+        input_id: str,
+        action: Literal['proceed', 'proceedEmpty', 'abort'] = 'proceed',
+        parameters: dict | None = None,
+    ) -> None:
+        """Settle a pending input step of a specific build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            input_id: The id of the pending input step.
+            action: 'proceed' submits parameters, 'proceedEmpty' proceeds without any, 'abort' aborts the build.
+            parameters: A mapping of parameter name to value, only used when action is 'proceed'.
+        """
+        folder, name = self._parse_fullname(fullname)
+
+        # Stapler reads the submitted form from the `json` field, so it must be present even when the
+        # input step declares no parameters. `proceedEmpty` and `abort` take no body at all.
+        data = None
+        if action == 'proceed':
+            values = [{'name': key, 'value': value} for key, value in (parameters or {}).items()]
+            data = {'json': json.dumps({'parameter': values})}
+
+        self.request(
+            'POST',
+            rest_endpoint.BUILD_INPUT(
+                folder=folder,
+                name=name,
+                number=number,
+                input_id=quote(input_id, safe=''),
+                action=action,
+            ),
+            data=data,
+        )
 
     def get_build_replay(self, *, fullname: str, number: int) -> BuildReplay:
         """Get the build replay of a specific build.
