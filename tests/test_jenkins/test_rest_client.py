@@ -689,6 +689,12 @@ class TestBuild:
         with pytest.raises(HTTPError):
             jenkins.get_build_pending_inputs(fullname='example-job', number=1)
 
+    def test_get_build_pending_inputs_http_error_without_response(self, jenkins, mock_session):
+        mock_session.request.side_effect = HTTPError('Connection aborted')
+
+        with pytest.raises(HTTPError, match='Connection aborted'):
+            jenkins.get_build_pending_inputs(fullname='example-job', number=1)
+
     def test_submit_build_input_proceed_with_parameters(self, jenkins, mock_session):
         assert (
             jenkins.submit_build_input(
@@ -1107,6 +1113,30 @@ class TestItem:
                 )
             ],
         )
+
+    def test_get_last_build_number(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'lastBuild': {'number': 42}})
+
+        assert jenkins.get_last_build_number(fullname='example-job') == 42
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/example-job/api/json?tree=lastBuild[number]',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_get_last_build_number_never_built(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'lastBuild': None})
+
+        assert jenkins.get_last_build_number(fullname='example-job') is None
+
+    def test_get_last_build_number_item_without_builds(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {})
+
+        assert jenkins.get_last_build_number(fullname='example-folder') is None
 
     def test_get_item_config(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(text='<project>config</project>')

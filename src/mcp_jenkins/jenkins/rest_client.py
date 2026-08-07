@@ -378,11 +378,13 @@ class Jenkins:
                 rest_endpoint.BUILD_PENDING_INPUTS(folder=folder, name=name, number=number),
             )
         except HTTPError as e:
-            if e.response.status_code == 404:
+            # A transport-level HTTPError carries no response, so the status can only be read defensively.
+            if e.response is not None and e.response.status_code == 404:
                 msg = (
                     f'No wfapi pending input endpoint for {fullname} #{number}. Either the build does not '
                     f'exist, the job is not a pipeline, or the pipeline-rest-api plugin (bundled with '
-                    f'pipeline-stage-view) is not installed. Pass input_id explicitly to skip discovery.'
+                    f'pipeline-stage-view) is not installed. submit_input can skip this discovery step '
+                    f'entirely when input_id is passed explicitly.'
                 )
                 raise ValueError(msg) from e
             raise
@@ -603,6 +605,20 @@ class Jenkins:
         folder, name = self._parse_fullname(fullname)
         response = self.request('GET', rest_endpoint.ITEM(folder=folder, name=name, depth=depth))
         return serialize_item(response.json())
+
+    def get_last_build_number(self, *, fullname: str) -> int | None:
+        """Get the number of the last build of an item.
+
+        Args:
+            fullname: The full name of the item (e.g., "folder1/folder2/item").
+
+        Returns:
+            The last build number, or None when the item has never been built or cannot have builds.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request('GET', rest_endpoint.ITEM_LAST_BUILD_NUMBER(folder=folder, name=name))
+
+        return (response.json().get('lastBuild') or {}).get('number')
 
     def get_item_config(self, *, fullname: str) -> str:
         """Get item configuration by its fullname.

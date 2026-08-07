@@ -4,20 +4,21 @@ from typing import Literal
 from fastmcp import Context
 
 from mcp_jenkins.core.lifespan import jenkins
+from mcp_jenkins.jenkins import Jenkins
 from mcp_jenkins.server import mcp
 
 
-def _last_build_number(ctx: Context, fullname: str) -> int:
+def _last_build_number(client: Jenkins, fullname: str) -> int:
     """Resolve the last build number of a job, raising a clear error when it has none
 
-    Items that have never been built carry lastBuild=None, and item types such as Folder have no
-    lastBuild field at all, so the attribute is read defensively rather than dereferenced directly.
+    The number is fetched with a tree query rather than a depth=1 item fetch: the latter returns every
+    build stub, action and parameter definition of the job to read a single integer.
     """
-    last_build = getattr(jenkins(ctx).get_item(fullname=fullname, depth=1), 'lastBuild', None)
-    if last_build is None:
+    number = client.get_last_build_number(fullname=fullname)
+    if number is None:
         raise ValueError(f'No build found for job: {fullname}')
 
-    return last_build.number
+    return number
 
 
 @mcp.tool(tags=['read'])
@@ -157,12 +158,14 @@ async def get_pending_inputs(ctx: Context, fullname: str, number: int | None = N
     Returns:
         A list of pending inputs with id, message, proceedText and inputs (parameter definitions)
     """
+    client = jenkins(ctx)
+
     if number is None:
-        number = _last_build_number(ctx, fullname)
+        number = _last_build_number(client, fullname)
 
     return [
         pending_input.model_dump(exclude_none=True)
-        for pending_input in jenkins(ctx).get_build_pending_inputs(fullname=fullname, number=number)
+        for pending_input in client.get_build_pending_inputs(fullname=fullname, number=number)
     ]
 
 
@@ -170,7 +173,7 @@ async def get_pending_inputs(ctx: Context, fullname: str, number: int | None = N
 async def submit_input(
     ctx: Context,
     fullname: str,
-    number: int | None = None,
+    number: int,
     input_id: str | None = None,
     parameters: dict | None = None,
     action: Literal['proceed', 'abort'] = 'proceed',
@@ -179,45 +182,68 @@ async def submit_input(
 
     Warnings:
         Omitting parameters proceeds without submitting any values — Jenkins does not fall back to the
-        declared defaults. Call get_pending_inputs first when the input declares parameters.
+        declared defaults. That is refused when the input is discovered here, but passing input_id skips
+        discovery, so call get_pending_inputs first in that case.
         If this call times out the input may or may not have been settled: re-check with
         get_pending_inputs rather than retrying, because a settled input rejects a second submission.
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, use the last build
+        number: The number of the build to respond to, use get_pending_inputs to find the paused build
         input_id: The id of the pending input, if None, resolved automatically when exactly one is pending
         parameters: A mapping of parameter name to value, e.g. {'APPROVE': True, 'TARGET': 'prod'}
         action: 'proceed' to continue the pipeline, 'abort' to reject the input and abort the build
 
     Returns:
-        A dict with the fullname, number, inputId and action that were submitted
+        A dict with the fullname, number, inputId and the Jenkins action that was submitted:
+        'proceed' with values, 'proceedEmpty' with none, or 'abort'
     """
-    if number is None:
-        number = _last_build_number(ctx, fullname)
-
     if action == 'abort' and parameters:
         raise ValueError(f'parameters cannot be combined with action="abort" for {fullname} #{number}')
 
+    client = jenkins(ctx)
+
+    # Only known when the input is discovered here: an explicit input_id skips the wfapi lookup.
+    declared = None
+
     if input_id is None:
-        pending_inputs = jenkins(ctx).get_build_pending_inputs(fullname=fullname, number=number)
+        pending_inputs = client.get_build_pending_inputs(fullname=fullname, number=number)
         if not pending_inputs:
             raise ValueError(f'No pending input for {fullname} #{number}')
         if len(pending_inputs) > 1:
             ids = ', '.join(pending_input.id for pending_input in pending_inputs)
             raise ValueError(f'Multiple pending inputs for {fullname} #{number}, pass input_id: {ids}')
         input_id = pending_inputs[0].id
+        declared = {parameter['name'] for parameter in pending_inputs[0].inputs if 'name' in parameter}
+
+    # An input that reports no definitions is left to Jenkins: absent data is not proof of absent parameters.
+    if declared and action == 'proceed':
+        if not parameters:
+            msg = (
+                f'Input {input_id} of {fullname} #{number} declares {", ".join(sorted(declared))}. '
+                f'Proceeding without values settles it with null rather than the declared defaults, '
+                f'so pass parameters explicitly.'
+            )
+            raise ValueError(msg)
+
+        unknown = sorted(set(parameters) - declared)
+        if unknown:
+            msg = (
+                f'Input {input_id} of {fullname} #{number} does not declare {", ".join(unknown)}. '
+                f'Declared parameters: {", ".join(sorted(declared))}'
+            )
+            raise ValueError(msg)
 
     if action == 'abort':
         jenkins_action = 'abort'
     else:
         jenkins_action = 'proceed' if parameters else 'proceedEmpty'
 
-    jenkins(ctx).submit_build_input(
+    client.submit_build_input(
         fullname=fullname, number=number, input_id=input_id, action=jenkins_action, parameters=parameters
     )
 
-    return {'fullname': fullname, 'number': number, 'inputId': input_id, 'action': action}
+    return {'fullname': fullname, 'number': number, 'inputId': input_id, 'action': jenkins_action}
 
 
 @mcp.tool(tags=['read'])
