@@ -17,7 +17,7 @@ class RestEndpoint(str):
 CRUMB = RestEndpoint('crumbIssuer/api/json')
 
 ITEM = RestEndpoint('{folder}job/{name}/api/json?depth={depth}')
-ITEM_LAST_BUILD_NUMBER = RestEndpoint('{folder}job/{name}/api/json?tree=lastBuild[number]')
+ITEM_LAST_BUILD_NUMBER = RestEndpoint('{folder}job/{name}/api/json?tree=lastBuild[number],buildable')
 ITEMS = RestEndpoint('{folder}/api/json?tree={query}')
 ITEM_CONFIG = RestEndpoint('{folder}job/{name}/config.xml')
 ITEM_BUILD = RestEndpoint('{folder}job/{name}/{build_type}')

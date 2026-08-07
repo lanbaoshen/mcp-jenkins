@@ -2,18 +2,22 @@ import base64
 from typing import Literal
 
 from fastmcp import Context
+from requests.exceptions import HTTPError
 
 from mcp_jenkins.core.lifespan import jenkins
-from mcp_jenkins.jenkins import Jenkins
+from mcp_jenkins.jenkins import Jenkins, PendingInputsUnavailableError
 from mcp_jenkins.server import mcp
 
 
-def _last_build_number(client: Jenkins, fullname: str) -> int:
-    """Resolve the last build number of a job, raising a clear error when it has none
+def _resolve_build_number(client: Jenkins, fullname: str, number: int | None) -> int:
+    """Resolve an omitted build number to the job's last build, raising a clear error when it has none
 
     The number is fetched with a tree query rather than a depth=1 item fetch: the latter returns every
     build stub, action and parameter definition of the job to read a single integer.
     """
+    if number is not None:
+        return number
+
     number = client.get_last_build_number(fullname=fullname)
     if number is None:
         raise ValueError(f'No build found for job: {fullname}')
@@ -45,8 +49,7 @@ async def get_build(ctx: Context, fullname: str, number: int | None = None) -> d
     Returns:
         The build info
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build(fullname=fullname, number=number).model_dump(exclude_none=True)
 
@@ -62,8 +65,7 @@ async def get_build_scripts(ctx: Context, fullname: str, number: int | None = No
     Returns:
         A list of scripts used in the build
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build_replay(fullname=fullname, number=number).scripts
 
@@ -89,8 +91,7 @@ async def get_build_console_output(
     Returns:
         The console output of the build
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build_console_output(
         fullname=fullname, number=number, pattern=pattern, offset=offset, limit=limit
@@ -108,8 +109,7 @@ async def get_build_test_report(ctx: Context, fullname: str, number: int | None 
     Returns:
         The test report of the build
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build_test_report(fullname=fullname, number=number)
 
@@ -125,8 +125,7 @@ async def get_build_parameters(ctx: Context, fullname: str, number: int | None =
     Returns:
         A dictionary of build parameter names and their values
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build_parameters(fullname=fullname, number=number)
 
@@ -149,22 +148,23 @@ async def get_pending_inputs(ctx: Context, fullname: str, number: int | None = N
     A pipeline showing "Paused for Input" is waiting on an input step. Call this before submit_input
     to discover the input id and the parameter definitions the pipeline is waiting for.
 
+    Only the given build is inspected. With number=None that is the job's last build, so a paused build
+    that is no longer the most recent one is not found that way — locate it with get_running_builds and
+    pass its number explicitly.
+
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The number of the build, if None, check the last build
 
     Returns:
         A list of pending inputs with id, message, proceedText and inputs (parameter definitions)
     """
     client = jenkins(ctx)
 
-    if number is None:
-        number = _last_build_number(client, fullname)
+    number = _resolve_build_number(client, fullname, number)
 
-    # The wfapi URLs embed the input id already URL-encoded; exposing them invites feeding that encoded
-    # segment back as input_id, which gets encoded a second time on submission.
     return [
-        pending_input.model_dump(exclude_none=True, exclude={'proceedUrl', 'abortUrl', 'redirectApprovalUrl'})
+        pending_input.model_dump(exclude_none=True)
         for pending_input in client.get_build_pending_inputs(fullname=fullname, number=number)
     ]
 
@@ -183,14 +183,16 @@ async def submit_input(
     Warnings:
         Omitting a declared parameter settles it with null — Jenkins does not fall back to the declared
         defaults, so every declared parameter must be submitted. That is enforced whenever the pending
-        input can be discovered; when the wfapi endpoint is unavailable an explicit input_id is submitted
-        as-is, so check the declared parameters yourself in that case.
+        input can be discovered; when the pending inputs cannot be fetched (wfapi endpoint missing or
+        erroring) an explicit input_id is submitted as-is, so check the declared parameters yourself in
+        that case.
         If this call times out the input may or may not have been settled: re-check with
         get_pending_inputs rather than retrying, because a settled input rejects a second submission.
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build to respond to, use get_pending_inputs to find the paused build
+        number: The number of the paused build, use get_pending_inputs to confirm its pending input
+            (and get_running_builds to locate a paused build that is not the job's last one)
         input_id: The id of the pending input, if None, resolved automatically when exactly one is pending
         parameters: A mapping of parameter name to value, e.g. {'APPROVE': True, 'TARGET': 'prod'}
         action: 'proceed' to continue the pipeline, 'abort' to reject the input and abort the build
@@ -205,10 +207,21 @@ async def submit_input(
     client = jenkins(ctx)
 
     # Validation needs the pending input's declared parameters. An explicit input_id must stay usable on
-    # controllers without the wfapi endpoint, so there a failed discovery degrades to no validation.
+    # controllers where the wfapi endpoint is missing or unreadable, so there a failed discovery degrades
+    # to no validation. Malformed wfapi responses are not a degrade signal — they raise, because silently
+    # skipping validation lets a misspelled parameter settle the real one with null.
+    pending_inputs = None
+    discovery_error = None
+    if input_id is None or action == 'proceed':
+        try:
+            pending_inputs = client.get_build_pending_inputs(fullname=fullname, number=number)
+        except (PendingInputsUnavailableError, HTTPError) as e:
+            if input_id is None:
+                raise
+            discovery_error = e
+
     pending = None
     if input_id is None:
-        pending_inputs = client.get_build_pending_inputs(fullname=fullname, number=number)
         if not pending_inputs:
             raise ValueError(f'No pending input for {fullname} #{number}')
         if len(pending_inputs) > 1:
@@ -216,16 +229,11 @@ async def submit_input(
             raise ValueError(f'Multiple pending inputs for {fullname} #{number}, pass input_id: {ids}')
         pending = pending_inputs[0]
         input_id = pending.id
-    elif action == 'proceed':
-        try:
-            pending_inputs = client.get_build_pending_inputs(fullname=fullname, number=number)
-        except ValueError:
-            pending_inputs = None
-        if pending_inputs is not None:
-            pending = next((pending_input for pending_input in pending_inputs if pending_input.id == input_id), None)
-            if pending is None:
-                ids = ', '.join(pending_input.id for pending_input in pending_inputs) or 'none'
-                raise ValueError(f'No pending input {input_id} for {fullname} #{number}. Pending inputs: {ids}')
+    elif pending_inputs is not None:
+        pending = next((pending_input for pending_input in pending_inputs if pending_input.id == input_id), None)
+        if pending is None:
+            ids = ', '.join(pending_input.id for pending_input in pending_inputs) or 'none'
+            raise ValueError(f'No pending input {input_id} for {fullname} #{number}. Pending inputs: {ids}')
 
     if pending is not None and action == 'proceed':
         declared = {parameter['name'] for parameter in pending.inputs if 'name' in parameter}
@@ -253,9 +261,22 @@ async def submit_input(
     else:
         jenkins_action = 'proceed' if parameters else 'proceedEmpty'
 
-    client.submit_build_input(
-        fullname=fullname, number=number, input_id=input_id, action=jenkins_action, parameters=parameters
-    )
+    try:
+        client.submit_build_input(
+            fullname=fullname, number=number, input_id=input_id, action=jenkins_action, parameters=parameters
+        )
+    except HTTPError as e:
+        if discovery_error is not None:
+            msg = (
+                f'Submitting input {input_id} for {fullname} #{number} failed ({e}) and the pending inputs '
+                f'could not be checked beforehand: {discovery_error}'
+            )
+        else:
+            msg = (
+                f'Submitting input {input_id} for {fullname} #{number} failed ({e}). The input may already '
+                f'be settled — re-check with get_pending_inputs rather than retrying.'
+            )
+        raise ValueError(msg) from e
 
     return {'fullname': fullname, 'number': number, 'inputId': input_id, 'action': jenkins_action}
 
@@ -271,8 +292,7 @@ async def get_all_build_artifacts(ctx: Context, fullname: str, number: int | Non
     Returns:
         A list of artifact metadata dicts with fileName, relativePath, and displayPath
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return [
         artifact.model_dump(exclude_none=True)
@@ -294,8 +314,7 @@ async def get_build_artifact(ctx: Context, fullname: str, relative_path: str, nu
     Returns:
         A dict with 'content' (str) and 'encoding' ('utf-8' or 'base64')
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     content = jenkins(ctx).get_build_artifact(fullname=fullname, number=number, relative_path=relative_path)
 
@@ -317,7 +336,6 @@ async def get_build_artifact_url(ctx: Context, fullname: str, relative_path: str
     Returns:
         The direct Jenkins URL of the artifact
     """
-    if number is None:
-        number = _last_build_number(jenkins(ctx), fullname)
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build_artifact_url(fullname=fullname, number=number, relative_path=relative_path)

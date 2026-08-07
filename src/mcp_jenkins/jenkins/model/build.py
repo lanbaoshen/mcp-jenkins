@@ -28,6 +28,9 @@ class BuildReplay(BaseModel):
     scripts: list[str]
 
 
+# The wfapi URL fields (proceedUrl, abortUrl, redirectApprovalUrl) are deliberately not modeled: they
+# embed the input id already URL-encoded, and exposing them invites feeding that encoded segment back
+# as input_id, which gets encoded a second time on submission.
 class PendingInput(BaseModel):
     id: str
 
@@ -35,7 +38,3 @@ class PendingInput(BaseModel):
     proceedText: str | None = None
 
     inputs: list[dict] = []
-
-    proceedUrl: str | None = None
-    abortUrl: str | None = None
-    redirectApprovalUrl: str | None = None

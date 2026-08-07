@@ -1,7 +1,7 @@
 import pytest
 from requests import HTTPError
 
-from mcp_jenkins.jenkins import Jenkins
+from mcp_jenkins.jenkins import Jenkins, PendingInputsUnavailableError
 from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay, PendingInput
 from mcp_jenkins.jenkins.model.item import (
     Folder,
@@ -654,8 +654,6 @@ class TestBuild:
                 message='Deploy to prod?',
                 proceedText='Deploy',
                 inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
-                proceedUrl='/job/example-job/1/wfapi/inputSubmit?inputId=Deploy',
-                abortUrl='/job/example-job/1/input/Deploy/abort',
             )
         ]
 
@@ -678,7 +676,7 @@ class TestBuild:
         response.raise_for_status.side_effect = HTTPError(response=response)
         mock_session.request.return_value = response
 
-        with pytest.raises(ValueError, match='pipeline-rest-api'):
+        with pytest.raises(PendingInputsUnavailableError, match='pipeline-rest-api'):
             jenkins.get_build_pending_inputs(fullname='example-job', number=1)
 
     def test_get_build_pending_inputs_other_http_error(self, jenkins, mock_session, mocker):
@@ -1115,13 +1113,13 @@ class TestItem:
         )
 
     def test_get_last_build_number(self, jenkins, mock_session, mocker):
-        mock_session.request.return_value = mocker.Mock(json=lambda: {'lastBuild': {'number': 42}})
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'buildable': True, 'lastBuild': {'number': 42}})
 
         assert jenkins.get_last_build_number(fullname='example-job') == 42
 
         mock_session.request.assert_called_once_with(
             method='GET',
-            url='https://example.com/job/example-job/api/json?tree=lastBuild[number]',
+            url='https://example.com/job/example-job/api/json?tree=lastBuild[number],buildable',
             headers={'Jenkins-Crumb': 'crumb-value'},
             params=None,
             data=None,
@@ -1129,14 +1127,20 @@ class TestItem:
         )
 
     def test_get_last_build_number_never_built(self, jenkins, mock_session, mocker):
-        mock_session.request.return_value = mocker.Mock(json=lambda: {'lastBuild': None})
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'buildable': True, 'lastBuild': None})
+
+        assert jenkins.get_last_build_number(fullname='example-job') is None
+
+    def test_get_last_build_number_never_built_without_last_build_key(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'buildable': True})
 
         assert jenkins.get_last_build_number(fullname='example-job') is None
 
     def test_get_last_build_number_item_without_builds(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(json=lambda: {})
 
-        assert jenkins.get_last_build_number(fullname='example-folder') is None
+        with pytest.raises(ValueError, match='cannot have builds'):
+            jenkins.get_last_build_number(fullname='example-folder')
 
     def test_get_item_config(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(text='<project>config</project>')

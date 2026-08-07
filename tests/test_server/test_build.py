@@ -1,5 +1,7 @@
 import pytest
+from requests.exceptions import HTTPError
 
+from mcp_jenkins.jenkins import PendingInputsUnavailableError
 from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay, PendingInput
 from mcp_jenkins.server import build
 
@@ -126,8 +128,6 @@ async def test_get_pending_inputs(mock_jenkins, mocker):
             message='Deploy to prod?',
             proceedText='Deploy',
             inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
-            proceedUrl='/job/job1/1/wfapi/inputSubmit?inputId=Deploy',
-            abortUrl='/job/job1/1/input/Deploy/abort',
         )
     ]
 
@@ -327,13 +327,62 @@ async def test_submit_input_explicit_input_id_not_pending(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_submit_input_explicit_input_id_without_wfapi_submits_unvalidated(mock_jenkins, mocker):
-    mock_jenkins.get_build_pending_inputs.side_effect = ValueError('No wfapi pending input endpoint for job1 #7')
+    mock_jenkins.get_build_pending_inputs.side_effect = PendingInputsUnavailableError(
+        'No wfapi pending input endpoint for job1 #7'
+    )
 
     await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy', parameters={'ANYTHING': True})
 
     mock_jenkins.submit_build_input.assert_called_once_with(
         fullname='job1', number=7, input_id='Deploy', action='proceed', parameters={'ANYTHING': True}
     )
+
+
+@pytest.mark.asyncio
+async def test_submit_input_explicit_input_id_wfapi_http_error_submits_unvalidated(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.side_effect = HTTPError('500 Server Error')
+
+    await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy', parameters={'ANYTHING': True})
+
+    mock_jenkins.submit_build_input.assert_called_once_with(
+        fullname='job1', number=7, input_id='Deploy', action='proceed', parameters={'ANYTHING': True}
+    )
+
+
+@pytest.mark.asyncio
+async def test_submit_input_malformed_wfapi_response_does_not_skip_validation(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.side_effect = ValueError('Expecting value: line 1 column 1 (char 0)')
+
+    with pytest.raises(ValueError, match='Expecting value'):
+        await build.submit_input(
+            mocker.Mock(), fullname='job1', number=7, input_id='Deploy', parameters={'ANYTHING': True}
+        )
+
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_failed_submit_reports_discovery_error(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.side_effect = PendingInputsUnavailableError(
+        'No wfapi pending input endpoint for job1 #999'
+    )
+    mock_jenkins.submit_build_input.side_effect = HTTPError('404 Client Error')
+
+    with pytest.raises(ValueError, match='No wfapi pending input endpoint') as exc_info:
+        await build.submit_input(mocker.Mock(), fullname='job1', number=999, input_id='Deploy')
+
+    assert '404 Client Error' in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_submit_input_failed_submit_hints_at_settled_input(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+    mock_jenkins.submit_build_input.side_effect = HTTPError('400 Client Error')
+
+    with pytest.raises(ValueError, match='may already be settled') as exc_info:
+        await build.submit_input(mocker.Mock(), fullname='job1', number=1)
+
+    assert '400 Client Error' in str(exc_info.value)
 
 
 @pytest.mark.asyncio

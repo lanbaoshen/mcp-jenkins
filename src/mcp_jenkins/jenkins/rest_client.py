@@ -23,6 +23,15 @@ from mcp_jenkins.jenkins.model.node import Node
 from mcp_jenkins.jenkins.model.queue import Queue, QueueItem
 
 
+class PendingInputsUnavailableError(ValueError):
+    """The wfapi pending input endpoint is not available for a build.
+
+    Raised on a 404: the build does not exist, the job is not a pipeline, or the pipeline-rest-api
+    plugin is missing. Kept distinct from other ValueErrors (malformed responses, validation failures)
+    so callers can degrade gracefully only when the endpoint itself is absent.
+    """
+
+
 class Jenkins:
     DEFAULT_HEADERS = {'Content-Type': 'text/xml; charset=utf-8'}
 
@@ -368,7 +377,7 @@ class Jenkins:
             A list of PendingInput objects, empty when the build is not waiting for input.
 
         Raises:
-            ValueError: If the wfapi pending input endpoint is not available.
+            PendingInputsUnavailableError: If the wfapi pending input endpoint is not available.
         """
         folder, name = self._parse_fullname(fullname)
 
@@ -385,7 +394,7 @@ class Jenkins:
                     f'exist, the job is not a pipeline, or the pipeline-rest-api plugin (bundled with '
                     f'pipeline-stage-view) is not installed.'
                 )
-                raise ValueError(msg) from e
+                raise PendingInputsUnavailableError(msg) from e
             raise
 
         return [PendingInput.model_validate(pending_input) for pending_input in response.json()]
@@ -612,12 +621,21 @@ class Jenkins:
             fullname: The full name of the item (e.g., "folder1/folder2/item").
 
         Returns:
-            The last build number, or None when the item has never been built or cannot have builds.
+            The last build number, or None when the job has never been built.
+
+        Raises:
+            ValueError: If the item cannot have builds at all (e.g. a folder or multibranch parent).
         """
         folder, name = self._parse_fullname(fullname)
         response = self.request('GET', rest_endpoint.ITEM_LAST_BUILD_NUMBER(folder=folder, name=name))
 
-        return (response.json().get('lastBuild') or {}).get('number')
+        data = response.json()
+        # Only Job subtypes expose `buildable`; its absence means the item is a folder-like container
+        # that can never have builds, as opposed to a job that simply has none yet.
+        if 'buildable' not in data:
+            raise ValueError(f'{fullname} cannot have builds (a folder or multibranch parent?), pass a job fullname')
+
+        return (data.get('lastBuild') or {}).get('number')
 
     def get_item_config(self, *, fullname: str) -> str:
         """Get item configuration by its fullname.
