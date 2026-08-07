@@ -46,7 +46,7 @@ async def get_build(ctx: Context, fullname: str, number: int | None = None) -> d
         The build info
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return jenkins(ctx).get_build(fullname=fullname, number=number).model_dump(exclude_none=True)
 
@@ -63,7 +63,7 @@ async def get_build_scripts(ctx: Context, fullname: str, number: int | None = No
         A list of scripts used in the build
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return jenkins(ctx).get_build_replay(fullname=fullname, number=number).scripts
 
@@ -90,9 +90,7 @@ async def get_build_console_output(
         The console output of the build
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
-    if number is None:
-        raise ValueError(f'No build found for job: {fullname}')
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return jenkins(ctx).get_build_console_output(
         fullname=fullname, number=number, pattern=pattern, offset=offset, limit=limit
@@ -111,7 +109,7 @@ async def get_build_test_report(ctx: Context, fullname: str, number: int | None 
         The test report of the build
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return jenkins(ctx).get_build_test_report(fullname=fullname, number=number)
 
@@ -128,7 +126,7 @@ async def get_build_parameters(ctx: Context, fullname: str, number: int | None =
         A dictionary of build parameter names and their values
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return jenkins(ctx).get_build_parameters(fullname=fullname, number=number)
 
@@ -163,8 +161,10 @@ async def get_pending_inputs(ctx: Context, fullname: str, number: int | None = N
     if number is None:
         number = _last_build_number(client, fullname)
 
+    # The wfapi URLs embed the input id already URL-encoded; exposing them invites feeding that encoded
+    # segment back as input_id, which gets encoded a second time on submission.
     return [
-        pending_input.model_dump(exclude_none=True)
+        pending_input.model_dump(exclude_none=True, exclude={'proceedUrl', 'abortUrl', 'redirectApprovalUrl'})
         for pending_input in client.get_build_pending_inputs(fullname=fullname, number=number)
     ]
 
@@ -181,9 +181,10 @@ async def submit_input(
     """Respond to a pipeline input step of a build that is paused for input in Jenkins
 
     Warnings:
-        Omitting parameters proceeds without submitting any values — Jenkins does not fall back to the
-        declared defaults. That is refused when the input is discovered here, but passing input_id skips
-        discovery, so call get_pending_inputs first in that case.
+        Omitting a declared parameter settles it with null — Jenkins does not fall back to the declared
+        defaults, so every declared parameter must be submitted. That is enforced whenever the pending
+        input can be discovered; when the wfapi endpoint is unavailable an explicit input_id is submitted
+        as-is, so check the declared parameters yourself in that case.
         If this call times out the input may or may not have been settled: re-check with
         get_pending_inputs rather than retrying, because a settled input rejects a second submission.
 
@@ -203,9 +204,9 @@ async def submit_input(
 
     client = jenkins(ctx)
 
-    # Only known when the input is discovered here: an explicit input_id skips the wfapi lookup.
-    declared = None
-
+    # Validation needs the pending input's declared parameters. An explicit input_id must stay usable on
+    # controllers without the wfapi endpoint, so there a failed discovery degrades to no validation.
+    pending = None
     if input_id is None:
         pending_inputs = client.get_build_pending_inputs(fullname=fullname, number=number)
         if not pending_inputs:
@@ -213,24 +214,37 @@ async def submit_input(
         if len(pending_inputs) > 1:
             ids = ', '.join(pending_input.id for pending_input in pending_inputs)
             raise ValueError(f'Multiple pending inputs for {fullname} #{number}, pass input_id: {ids}')
-        input_id = pending_inputs[0].id
-        declared = {parameter['name'] for parameter in pending_inputs[0].inputs if 'name' in parameter}
+        pending = pending_inputs[0]
+        input_id = pending.id
+    elif action == 'proceed':
+        try:
+            pending_inputs = client.get_build_pending_inputs(fullname=fullname, number=number)
+        except ValueError:
+            pending_inputs = None
+        if pending_inputs is not None:
+            pending = next((pending_input for pending_input in pending_inputs if pending_input.id == input_id), None)
+            if pending is None:
+                ids = ', '.join(pending_input.id for pending_input in pending_inputs) or 'none'
+                raise ValueError(f'No pending input {input_id} for {fullname} #{number}. Pending inputs: {ids}')
 
-    # An input that reports no definitions is left to Jenkins: absent data is not proof of absent parameters.
-    if declared and action == 'proceed':
-        if not parameters:
-            msg = (
-                f'Input {input_id} of {fullname} #{number} declares {", ".join(sorted(declared))}. '
-                f'Proceeding without values settles it with null rather than the declared defaults, '
-                f'so pass parameters explicitly.'
-            )
-            raise ValueError(msg)
+    if pending is not None and action == 'proceed':
+        declared = {parameter['name'] for parameter in pending.inputs if 'name' in parameter}
+        submitted = set(parameters or {})
 
-        unknown = sorted(set(parameters) - declared)
+        unknown = sorted(submitted - declared)
         if unknown:
             msg = (
                 f'Input {input_id} of {fullname} #{number} does not declare {", ".join(unknown)}. '
-                f'Declared parameters: {", ".join(sorted(declared))}'
+                f'Declared parameters: {", ".join(sorted(declared)) or "none"}'
+            )
+            raise ValueError(msg)
+
+        missing = sorted(declared - submitted)
+        if missing:
+            msg = (
+                f'Input {input_id} of {fullname} #{number} declares {", ".join(sorted(declared))} but got '
+                f'no value for {", ".join(missing)}. Omitted parameters settle with null rather than their '
+                f'declared defaults, so pass every declared parameter.'
             )
             raise ValueError(msg)
 
@@ -258,7 +272,7 @@ async def get_all_build_artifacts(ctx: Context, fullname: str, number: int | Non
         A list of artifact metadata dicts with fileName, relativePath, and displayPath
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return [
         artifact.model_dump(exclude_none=True)
@@ -281,7 +295,7 @@ async def get_build_artifact(ctx: Context, fullname: str, relative_path: str, nu
         A dict with 'content' (str) and 'encoding' ('utf-8' or 'base64')
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     content = jenkins(ctx).get_build_artifact(fullname=fullname, number=number, relative_path=relative_path)
 
@@ -304,6 +318,6 @@ async def get_build_artifact_url(ctx: Context, fullname: str, relative_path: str
         The direct Jenkins URL of the artifact
     """
     if number is None:
-        number = jenkins(ctx).get_item(fullname=fullname, depth=1).lastBuild.number
+        number = _last_build_number(jenkins(ctx), fullname)
 
     return jenkins(ctx).get_build_artifact_url(fullname=fullname, number=number, relative_path=relative_path)

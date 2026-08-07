@@ -383,8 +383,7 @@ class Jenkins:
                 msg = (
                     f'No wfapi pending input endpoint for {fullname} #{number}. Either the build does not '
                     f'exist, the job is not a pipeline, or the pipeline-rest-api plugin (bundled with '
-                    f'pipeline-stage-view) is not installed. submit_input can skip this discovery step '
-                    f'entirely when input_id is passed explicitly.'
+                    f'pipeline-stage-view) is not installed.'
                 )
                 raise ValueError(msg) from e
             raise

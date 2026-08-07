@@ -27,7 +27,7 @@ async def test_get_running_builds(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build.return_value = Build(number=1, url='1', building=False, timestamp=1234567890)
 
     assert await build.get_build(mocker.Mock(), fullname='job1') == {
@@ -40,7 +40,7 @@ async def test_get_build(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build_scripts(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_replay.return_value = BuildReplay(scripts=['script1', 'script2'])
 
     assert await build.get_build_scripts(mocker.Mock(), fullname='job1') == [
@@ -51,7 +51,7 @@ async def test_get_build_scripts(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build_console_output(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_console_output.return_value = 'Console output here'
 
     assert await build.get_build_console_output(mocker.Mock(), fullname='job1') == 'Console output here'
@@ -65,7 +65,7 @@ async def test_get_build_console_output_with_number(mock_jenkins, mocker):
     mock_jenkins.get_build_console_output.return_value = 'output'
 
     assert await build.get_build_console_output(mocker.Mock(), fullname='job1', number=5) == 'output'
-    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_last_build_number.assert_not_called()
     mock_jenkins.get_build_console_output.assert_called_once_with(
         fullname='job1', number=5, pattern=None, offset=0, limit=None
     )
@@ -86,7 +86,7 @@ async def test_get_build_console_output_with_all_params(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build_console_output_no_build(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = None
+    mock_jenkins.get_last_build_number.return_value = None
 
     with pytest.raises(ValueError, match='No build found for job: job1'):
         await build.get_build_console_output(mocker.Mock(), fullname='job1')
@@ -94,7 +94,7 @@ async def test_get_build_console_output_no_build(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build_test_reports(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_test_report.return_value = {'reports': ['report1', 'report2']}
 
     assert await build.get_build_test_report(mocker.Mock(), fullname='job1') == {'reports': ['report1', 'report2']}
@@ -102,7 +102,7 @@ async def test_get_build_test_reports(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build_parameters(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_parameters.return_value = {'BRANCH': 'main', 'DEBUG': True}
 
     assert await build.get_build_parameters(mocker.Mock(), fullname='job1') == {
@@ -126,6 +126,8 @@ async def test_get_pending_inputs(mock_jenkins, mocker):
             message='Deploy to prod?',
             proceedText='Deploy',
             inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
+            proceedUrl='/job/job1/1/wfapi/inputSubmit?inputId=Deploy',
+            abortUrl='/job/job1/1/input/Deploy/abort',
         )
     ]
 
@@ -176,7 +178,7 @@ async def test_submit_input_auto_resolves_input_id(mock_jenkins, mocker):
         'inputId': 'Deploy',
         'action': 'proceedEmpty',
     }
-    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_last_build_number.assert_not_called()
     mock_jenkins.submit_build_input.assert_called_once_with(
         fullname='job1', number=1, input_id='Deploy', action='proceedEmpty', parameters=None
     )
@@ -184,7 +186,15 @@ async def test_submit_input_auto_resolves_input_id(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_submit_input_with_parameters(mock_jenkins, mocker):
-    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+    mock_jenkins.get_build_pending_inputs.return_value = [
+        PendingInput(
+            id='Deploy',
+            inputs=[
+                {'name': 'APPROVE', 'type': 'BooleanParameterDefinition'},
+                {'name': 'TARGET', 'type': 'StringParameterDefinition'},
+            ],
+        )
+    ]
 
     await build.submit_input(mocker.Mock(), fullname='job1', number=1, parameters={'APPROVE': True, 'TARGET': 'prod'})
 
@@ -207,6 +217,35 @@ async def test_submit_input_rejects_undeclared_parameter(mock_jenkins, mocker):
         await build.submit_input(mocker.Mock(), fullname='job1', number=1, parameters={'APPROVE': True})
 
     assert 'Declared parameters: APPROVED' in str(exc_info.value)
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_rejects_parameters_on_parameterless_input(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+
+    with pytest.raises(ValueError, match='does not declare APPROVE') as exc_info:
+        await build.submit_input(mocker.Mock(), fullname='job1', number=1, parameters={'APPROVE': True})
+
+    assert 'Declared parameters: none' in str(exc_info.value)
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_rejects_partial_parameters(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [
+        PendingInput(
+            id='Deploy',
+            inputs=[
+                {'name': 'CONFIRM', 'type': 'BooleanParameterDefinition'},
+                {'name': 'TARGET', 'type': 'StringParameterDefinition'},
+            ],
+        )
+    ]
+
+    with pytest.raises(ValueError, match='no value for CONFIRM'):
+        await build.submit_input(mocker.Mock(), fullname='job1', number=1, parameters={'TARGET': 'prod'})
+
     mock_jenkins.submit_build_input.assert_not_called()
 
 
@@ -250,10 +289,48 @@ async def test_submit_input_accepts_declared_parameters(mock_jenkins, mocker):
 
 
 @pytest.mark.asyncio
-async def test_submit_input_does_not_validate_names_with_explicit_input_id(mock_jenkins, mocker):
+async def test_submit_input_validates_names_with_explicit_input_id(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [
+        PendingInput(id='Deploy', inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}])
+    ]
+
+    with pytest.raises(ValueError, match='does not declare ANYTHING'):
+        await build.submit_input(
+            mocker.Mock(), fullname='job1', number=7, input_id='Deploy', parameters={'ANYTHING': True}
+        )
+
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_explicit_input_id_refuses_to_proceed_empty_on_declared_parameters(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [
+        PendingInput(id='Deploy', inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}])
+    ]
+
+    with pytest.raises(ValueError, match='no value for TARGET'):
+        await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy')
+
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_explicit_input_id_not_pending(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Rollback')]
+
+    with pytest.raises(ValueError, match='No pending input Deploy') as exc_info:
+        await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy')
+
+    assert 'Rollback' in str(exc_info.value)
+    mock_jenkins.submit_build_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_submit_input_explicit_input_id_without_wfapi_submits_unvalidated(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.side_effect = ValueError('No wfapi pending input endpoint for job1 #7')
+
     await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy', parameters={'ANYTHING': True})
 
-    mock_jenkins.get_build_pending_inputs.assert_not_called()
     mock_jenkins.submit_build_input.assert_called_once_with(
         fullname='job1', number=7, input_id='Deploy', action='proceed', parameters={'ANYTHING': True}
     )
@@ -261,10 +338,12 @@ async def test_submit_input_does_not_validate_names_with_explicit_input_id(mock_
 
 @pytest.mark.asyncio
 async def test_submit_input_with_explicit_input_id(mock_jenkins, mocker):
+    mock_jenkins.get_build_pending_inputs.return_value = [PendingInput(id='Deploy')]
+
     await build.submit_input(mocker.Mock(), fullname='job1', number=7, input_id='Deploy')
 
-    mock_jenkins.get_item.assert_not_called()
-    mock_jenkins.get_build_pending_inputs.assert_not_called()
+    mock_jenkins.get_last_build_number.assert_not_called()
+    mock_jenkins.get_build_pending_inputs.assert_called_once_with(fullname='job1', number=7)
     mock_jenkins.submit_build_input.assert_called_once_with(
         fullname='job1', number=7, input_id='Deploy', action='proceedEmpty', parameters=None
     )
@@ -278,6 +357,7 @@ async def test_submit_input_abort(mock_jenkins, mocker):
         'inputId': 'Deploy',
         'action': 'abort',
     }
+    mock_jenkins.get_build_pending_inputs.assert_not_called()
     mock_jenkins.submit_build_input.assert_called_once_with(
         fullname='job1', number=7, input_id='Deploy', action='abort', parameters=None
     )
@@ -317,7 +397,7 @@ async def test_submit_input_multiple_pending_inputs(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_all_build_artifacts(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_artifacts.return_value = [
         Artifact(
             fileName='index.html',
@@ -342,13 +422,13 @@ async def test_get_all_build_artifacts_with_number(mock_jenkins, mocker):
     mock_jenkins.get_build_artifacts.return_value = []
 
     assert await build.get_all_build_artifacts(mocker.Mock(), fullname='job1', number=5) == []
-    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_last_build_number.assert_not_called()
     mock_jenkins.get_build_artifacts.assert_called_once_with(fullname='job1', number=5)
 
 
 @pytest.mark.asyncio
 async def test_get_build_artifact_text(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_artifact.return_value = b'<html>report</html>'
 
     result = await build.get_build_artifact(
@@ -359,7 +439,7 @@ async def test_get_build_artifact_text(mock_jenkins, mocker):
 
 @pytest.mark.asyncio
 async def test_get_build_artifact_binary(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_artifact.return_value = bytes(range(256))
 
     result = await build.get_build_artifact(mocker.Mock(), fullname='job1', relative_path='trace.zip')
@@ -374,14 +454,14 @@ async def test_get_build_artifact_with_number(mock_jenkins, mocker):
     mock_jenkins.get_build_artifact.return_value = b'data'
 
     result = await build.get_build_artifact(mocker.Mock(), fullname='job1', relative_path='file.txt', number=3)
-    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_last_build_number.assert_not_called()
     mock_jenkins.get_build_artifact.assert_called_once_with(fullname='job1', number=3, relative_path='file.txt')
     assert result == {'content': 'data', 'encoding': 'utf-8'}
 
 
 @pytest.mark.asyncio
 async def test_get_build_artifact_url(mock_jenkins, mocker):
-    mock_jenkins.get_item.return_value.lastBuild.number = 1
+    mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_artifact_url.return_value = 'https://jenkins.example.com/job/job1/1/artifact/trace.zip'
 
     result = await build.get_build_artifact_url(mocker.Mock(), fullname='job1', relative_path='trace.zip')
@@ -393,6 +473,6 @@ async def test_get_build_artifact_url_with_number(mock_jenkins, mocker):
     mock_jenkins.get_build_artifact_url.return_value = 'https://jenkins.example.com/job/job1/5/artifact/report.html'
 
     result = await build.get_build_artifact_url(mocker.Mock(), fullname='job1', relative_path='report.html', number=5)
-    mock_jenkins.get_item.assert_not_called()
+    mock_jenkins.get_last_build_number.assert_not_called()
     mock_jenkins.get_build_artifact_url.assert_called_once_with(fullname='job1', number=5, relative_path='report.html')
     assert result == 'https://jenkins.example.com/job/job1/5/artifact/report.html'
