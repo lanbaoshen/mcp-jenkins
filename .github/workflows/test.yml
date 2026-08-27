@@ -38,6 +38,6 @@ jobs:
         run: uv run pytest --cov=mcp_jenkins --cov-branch --cov-report=xml
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
