@@ -17,6 +17,7 @@ class RestEndpoint(str):
 CRUMB = RestEndpoint('crumbIssuer/api/json')
 
 ITEM = RestEndpoint('{folder}job/{name}/api/json?depth={depth}')
+ITEM_LAST_BUILD_NUMBER = RestEndpoint('{folder}job/{name}/api/json?tree=lastBuild[number],buildable')
 ITEMS = RestEndpoint('{folder}/api/json?tree={query}')
 ITEM_CONFIG = RestEndpoint('{folder}job/{name}/config.xml')
 ITEM_BUILD = RestEndpoint('{folder}job/{name}/{build_type}')
@@ -40,6 +41,8 @@ BUILD_PARAMETERS = RestEndpoint('{folder}job/{name}/{number}/api/json?tree=actio
 BUILD_TEST_REPORT = RestEndpoint('{folder}job/{name}/{number}/testReport/api/json?depth={depth}')
 BUILD_ARTIFACT = RestEndpoint('{folder}job/{name}/{number}/artifact/{relative_path}')
 BUILD_ARTIFACTS = RestEndpoint('{folder}job/{name}/{number}/api/json?tree=artifacts[fileName,relativePath,displayPath]')
+BUILD_PENDING_INPUTS = RestEndpoint('{folder}job/{name}/{number}/wfapi/pendingInputActions')
+BUILD_INPUT = RestEndpoint('{folder}job/{name}/{number}/input/{input_id}/{action}')
 
 PLUGIN_LIST = RestEndpoint('pluginManager/api/json?depth={depth}')
 PLUGIN_LIST_TREE = RestEndpoint('pluginManager/api/json?tree=plugins[{tree}]')

@@ -1,8 +1,8 @@
 import pytest
 from requests import HTTPError
 
-from mcp_jenkins.jenkins import Jenkins
-from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay
+from mcp_jenkins.jenkins import Jenkins, PendingInputsUnavailableError
+from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay, PendingInput
 from mcp_jenkins.jenkins.model.item import (
     Folder,
     FreeStyleProject,
@@ -633,6 +633,137 @@ class TestBuild:
             timeout=75,
         )
 
+    def test_get_build_pending_inputs(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: [
+                {
+                    'id': 'Deploy',
+                    'message': 'Deploy to prod?',
+                    'proceedText': 'Deploy',
+                    'inputs': [{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
+                    'proceedUrl': '/job/example-job/1/wfapi/inputSubmit?inputId=Deploy',
+                    'abortUrl': '/job/example-job/1/input/Deploy/abort',
+                    '_links': {'self': {'href': '/whatever'}},
+                }
+            ]
+        )
+
+        assert jenkins.get_build_pending_inputs(fullname='example-job', number=1) == [
+            PendingInput(
+                id='Deploy',
+                message='Deploy to prod?',
+                proceedText='Deploy',
+                inputs=[{'name': 'TARGET', 'type': 'StringParameterDefinition'}],
+            )
+        ]
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/example-job/1/wfapi/pendingInputActions',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_get_build_pending_inputs_empty(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: [])
+
+        assert jenkins.get_build_pending_inputs(fullname='example-job', number=1) == []
+
+    def test_get_build_pending_inputs_missing_endpoint(self, jenkins, mock_session, mocker):
+        response = mocker.Mock(status_code=404)
+        response.raise_for_status.side_effect = HTTPError(response=response)
+        mock_session.request.return_value = response
+
+        with pytest.raises(PendingInputsUnavailableError, match='pipeline-rest-api'):
+            jenkins.get_build_pending_inputs(fullname='example-job', number=1)
+
+    def test_get_build_pending_inputs_other_http_error(self, jenkins, mock_session, mocker):
+        response = mocker.Mock(status_code=500)
+        response.raise_for_status.side_effect = HTTPError(response=response)
+        mock_session.request.return_value = response
+
+        with pytest.raises(HTTPError):
+            jenkins.get_build_pending_inputs(fullname='example-job', number=1)
+
+    def test_get_build_pending_inputs_http_error_without_response(self, jenkins, mock_session):
+        mock_session.request.side_effect = HTTPError('Connection aborted')
+
+        with pytest.raises(HTTPError, match='Connection aborted'):
+            jenkins.get_build_pending_inputs(fullname='example-job', number=1)
+
+    def test_submit_build_input_proceed_with_parameters(self, jenkins, mock_session):
+        assert (
+            jenkins.submit_build_input(
+                fullname='example-job',
+                number=7,
+                input_id='Deploy',
+                action='proceed',
+                parameters={'APPROVE': True, 'TARGET': 'prod', 'COUNT': 3},
+            )
+            is None
+        )
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/example-job/7/input/Deploy/proceed',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data={
+                'json': (
+                    '{"parameter": [{"name": "APPROVE", "value": true}, '
+                    '{"name": "TARGET", "value": "prod"}, {"name": "COUNT", "value": 3}]}'
+                )
+            },
+            timeout=75,
+        )
+
+    def test_submit_build_input_proceed_without_parameters_still_sends_json(self, jenkins, mock_session):
+        jenkins.submit_build_input(fullname='example-job', number=7, input_id='Deploy', action='proceed')
+
+        assert mock_session.request.call_args.kwargs['data'] == {'json': '{"parameter": []}'}
+
+    def test_submit_build_input_proceed_empty(self, jenkins, mock_session):
+        jenkins.submit_build_input(fullname='example-job', number=7, input_id='Deploy', action='proceedEmpty')
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/example-job/7/input/Deploy/proceedEmpty',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_submit_build_input_abort(self, jenkins, mock_session):
+        jenkins.submit_build_input(fullname='example-job', number=7, input_id='Deploy', action='abort')
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/example-job/7/input/Deploy/abort',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_submit_build_input_quotes_input_id(self, jenkins, mock_session):
+        jenkins.submit_build_input(fullname='example-job', number=7, input_id='Deploy to prod/now', action='abort')
+
+        assert (
+            mock_session.request.call_args.kwargs['url']
+            == 'https://example.com/job/example-job/7/input/Deploy%20to%20prod%2Fnow/abort'
+        )
+
+    def test_submit_build_input_in_folder(self, jenkins, mock_session):
+        jenkins.submit_build_input(fullname='folder/sub/example-job', number=7, input_id='Deploy', action='abort')
+
+        assert (
+            mock_session.request.call_args.kwargs['url']
+            == 'https://example.com/job/folder/job/sub/job/example-job/7/input/Deploy/abort'
+        )
+
     def test_get_build_replay(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(
             text=(
@@ -980,6 +1111,36 @@ class TestItem:
                 )
             ],
         )
+
+    def test_get_last_build_number(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'buildable': True, 'lastBuild': {'number': 42}})
+
+        assert jenkins.get_last_build_number(fullname='example-job') == 42
+
+        mock_session.request.assert_called_once_with(
+            method='GET',
+            url='https://example.com/job/example-job/api/json?tree=lastBuild[number],buildable',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params=None,
+            data=None,
+            timeout=75,
+        )
+
+    def test_get_last_build_number_never_built(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'buildable': True, 'lastBuild': None})
+
+        assert jenkins.get_last_build_number(fullname='example-job') is None
+
+    def test_get_last_build_number_never_built_without_last_build_key(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {'buildable': True})
+
+        assert jenkins.get_last_build_number(fullname='example-job') is None
+
+    def test_get_last_build_number_item_without_builds(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(json=lambda: {})
+
+        with pytest.raises(ValueError, match='cannot have builds'):
+            jenkins.get_last_build_number(fullname='example-folder')
 
     def test_get_item_config(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(text='<project>config</project>')

@@ -1,3 +1,3 @@
-from .rest_client import Jenkins
+from .rest_client import Jenkins, PendingInputsUnavailableError
 
-__all__ = ['Jenkins']
+__all__ = ['Jenkins', 'PendingInputsUnavailableError']
