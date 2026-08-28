@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import click
+from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
 try:
@@ -16,14 +17,33 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
+def _load_env_file(ctx: click.Context, param: click.Parameter, value: str | None) -> str | None:  # noqa: ARG001
+    # Eager so JENKINS_* variables from the file are visible to the other options' envvar lookups below.
+    # find_dotenv(usecwd=True) is used instead of load_dotenv()'s own discovery, which locates the
+    # .env file relative to the caller's source file rather than the current working directory.
+    load_dotenv(dotenv_path=value or find_dotenv(usecwd=True))
+    return value
+
+
 @click.command()
-@click.option('--jenkins-url', required=False)
-@click.option('--jenkins-username', required=False)
-@click.option('--jenkins-password', required=False)
-@click.option('--jenkins-timeout', default=5)
+@click.option(
+    '--env-file',
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    is_eager=True,
+    expose_value=False,
+    callback=_load_env_file,
+    help='Path to a .env file to load configuration from. If omitted, a .env file in the current '
+    'directory (or a parent directory) is loaded automatically if present.',
+)
+@click.option('--jenkins-url', required=False, envvar='JENKINS_URL')
+@click.option('--jenkins-username', required=False, envvar='JENKINS_USERNAME')
+@click.option('--jenkins-password', required=False, envvar='JENKINS_PASSWORD')
+@click.option('--jenkins-timeout', default=5, envvar='JENKINS_TIMEOUT')
 @click.option(
     '--jenkins-verify-ssl/--no-jenkins-verify-ssl',
     default=True,
+    envvar='JENKINS_VERIFY_SSL',
     help='Whether to verify SSL certificates, default is True',
 )
 @click.option(
