@@ -1,6 +1,6 @@
 import re
 from functools import reduce
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,6 +19,8 @@ from mcp_jenkins.jenkins.model.item import (
 )
 from mcp_jenkins.jenkins.model.node import Node
 from mcp_jenkins.jenkins.model.queue import Queue, QueueItem
+
+BuildRef: TypeAlias = int | str
 
 
 class Jenkins:
@@ -278,12 +280,12 @@ class Jenkins:
             data=config_xml,
         )
 
-    def get_build(self, *, fullname: str, number: int, depth: int = 0) -> Build:
+    def get_build(self, *, fullname: str, number: BuildRef, depth: int = 0) -> Build:
         """Get build by fullname and number.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
             depth: The depth of the information to retrieve.
 
         Returns:
@@ -300,7 +302,7 @@ class Jenkins:
         self,
         *,
         fullname: str,
-        number: int,
+        number: BuildRef,
         pattern: str | None = None,
         offset: int = 0,
         limit: int | None = None,
@@ -309,7 +311,7 @@ class Jenkins:
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
             pattern: Optional regex pattern to filter lines (only matching lines are returned).
             offset: Number of lines to skip from the beginning (after pattern filtering).
             limit: Maximum number of lines to return (after pattern filtering and offset).
@@ -353,14 +355,14 @@ class Jenkins:
         folder, name = self._parse_fullname(fullname)
         self.request('POST', rest_endpoint.BUILD_STOP(folder=folder, name=name, number=number))
 
-    def get_build_replay(self, *, fullname: str, number: int) -> BuildReplay:
+    def get_build_replay(self, *, fullname: str, number: BuildRef) -> BuildReplay:
         """Get the build replay of a specific build.
 
         If you want to get the pipeline source code of a specific build in Jenkins, you can use this method.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
 
         Returns:
             The build replay object containing the pipeline scripts.
@@ -374,12 +376,12 @@ class Jenkins:
         scripts = [textarea.text for textarea in soup.find_all('textarea', {'name': re.compile(r'_\..*Script.*')})]
         return BuildReplay(scripts=scripts)
 
-    def get_build_parameters(self, *, fullname: str, number: int) -> dict:
+    def get_build_parameters(self, *, fullname: str, number: BuildRef) -> dict:
         """Get the build parameters of a specific build.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
 
         Returns:
             A dictionary representing the build parameters.
@@ -395,12 +397,12 @@ class Jenkins:
                 return {p['name']: p.get('value') for p in action['parameters']}
         return {}
 
-    def get_build_test_report(self, *, fullname: str, number: int, depth: int = 0) -> dict:
+    def get_build_test_report(self, *, fullname: str, number: BuildRef, depth: int = 0) -> dict:
         """Get the test report of a specific build.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
             depth: The depth of the information to retrieve.
 
         Returns:
@@ -413,12 +415,12 @@ class Jenkins:
         )
         return response.json()
 
-    def get_build_artifacts(self, *, fullname: str, number: int) -> list[Artifact]:
+    def get_build_artifacts(self, *, fullname: str, number: BuildRef) -> list[Artifact]:
         """Get the list of artifacts from a specific build.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
 
         Returns:
             A list of Artifact objects.
@@ -430,12 +432,12 @@ class Jenkins:
         )
         return [Artifact.model_validate(a) for a in response.json().get('artifacts', [])]
 
-    def get_build_artifact(self, *, fullname: str, number: int, relative_path: str) -> bytes:
+    def get_build_artifact(self, *, fullname: str, number: BuildRef, relative_path: str) -> bytes:
         """Download the content of a specific artifact from a build.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
             relative_path: The relative path of the artifact.
 
         Returns:
@@ -448,12 +450,12 @@ class Jenkins:
         )
         return response.content
 
-    def get_build_artifact_url(self, *, fullname: str, number: int, relative_path: str) -> str:
+    def get_build_artifact_url(self, *, fullname: str, number: BuildRef, relative_path: str) -> str:
         """Get the direct URL of a specific artifact from a build.
 
         Args:
             fullname: The fullname of the job.
-            number: The build number.
+            number: The build number or a Jenkins permalink.
             relative_path: The relative path of the artifact.
 
         Returns:

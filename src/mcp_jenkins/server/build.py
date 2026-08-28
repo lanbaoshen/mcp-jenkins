@@ -3,6 +3,7 @@ import base64
 from fastmcp import Context
 
 from mcp_jenkins.core.lifespan import jenkins
+from mcp_jenkins.jenkins import BuildRef
 from mcp_jenkins.server import mcp
 
 
@@ -20,12 +21,13 @@ async def get_running_builds(ctx: Context) -> list[dict]:
 
 
 @mcp.tool(tags=['read'])
-async def get_build(ctx: Context, fullname: str, number: int | None = None) -> dict:
+async def get_build(ctx: Context, fullname: str, number: BuildRef | None = None) -> dict:
     """Get specific build info from Jenkins
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         The build info
@@ -37,12 +39,13 @@ async def get_build(ctx: Context, fullname: str, number: int | None = None) -> d
 
 
 @mcp.tool(tags=['read'])
-async def get_build_scripts(ctx: Context, fullname: str, number: int | None = None) -> list[str]:
+async def get_build_scripts(ctx: Context, fullname: str, number: BuildRef | None = None) -> list[str]:
     """Get the scripts used in a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         A list of scripts used in the build
@@ -57,7 +60,7 @@ async def get_build_scripts(ctx: Context, fullname: str, number: int | None = No
 async def get_build_console_output(
     ctx: Context,
     fullname: str,
-    number: int | None = None,
+    number: BuildRef | None = None,
     pattern: str | None = None,
     offset: int = 0,
     limit: int | None = None,
@@ -66,7 +69,8 @@ async def get_build_console_output(
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
         pattern: Optional regex pattern to filter lines (only matching lines are returned)
         offset: Number of lines to skip from the beginning after filtering, default 0
         limit: Maximum number of lines to return after filtering and offset
@@ -85,12 +89,13 @@ async def get_build_console_output(
 
 
 @mcp.tool(tags=['read'])
-async def get_build_test_report(ctx: Context, fullname: str, number: int | None = None) -> dict:
+async def get_build_test_report(ctx: Context, fullname: str, number: BuildRef | None = None) -> dict:
     """Get the test report of a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         The test report of the build
@@ -102,12 +107,13 @@ async def get_build_test_report(ctx: Context, fullname: str, number: int | None 
 
 
 @mcp.tool(tags=['read'])
-async def get_build_parameters(ctx: Context, fullname: str, number: int | None = None) -> dict:
+async def get_build_parameters(ctx: Context, fullname: str, number: BuildRef | None = None) -> dict:
     """Get the parameters of a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         A dictionary of build parameter names and their values
@@ -130,12 +136,13 @@ async def stop_build(ctx: Context, fullname: str, number: int) -> None:
 
 
 @mcp.tool(tags=['read'])
-async def get_all_build_artifacts(ctx: Context, fullname: str, number: int | None = None) -> list[dict]:
+async def get_all_build_artifacts(ctx: Context, fullname: str, number: BuildRef | None = None) -> list[dict]:
     """List the artifacts of a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         A list of artifact metadata dicts with fileName, relativePath, and displayPath
@@ -150,7 +157,7 @@ async def get_all_build_artifacts(ctx: Context, fullname: str, number: int | Non
 
 
 @mcp.tool(tags=['read'])
-async def get_build_artifact(ctx: Context, fullname: str, relative_path: str, number: int | None = None) -> dict:
+async def get_build_artifact(ctx: Context, fullname: str, relative_path: str, number: BuildRef | None = None) -> dict:
     """Download an artifact from a specific build in Jenkins
 
     Binary files are returned as base64-encoded content; text files are returned as plain text.
@@ -158,7 +165,8 @@ async def get_build_artifact(ctx: Context, fullname: str, relative_path: str, nu
     Args:
         fullname: The fullname of the job
         relative_path: The relative path of the artifact (e.g. playwright-report/index.html)
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         A dict with 'content' (str) and 'encoding' ('utf-8' or 'base64')
@@ -175,13 +183,16 @@ async def get_build_artifact(ctx: Context, fullname: str, relative_path: str, nu
 
 
 @mcp.tool(tags=['read'])
-async def get_build_artifact_url(ctx: Context, fullname: str, relative_path: str, number: int | None = None) -> str:
+async def get_build_artifact_url(
+    ctx: Context, fullname: str, relative_path: str, number: BuildRef | None = None
+) -> str:
     """Get the direct URL of an artifact from a specific build in Jenkins
 
     Args:
         fullname: The fullname of the job
         relative_path: The relative path of the artifact (e.g. playwright-report/index.html)
-        number: The number of the build, if None, get the last build
+        number: The build number or a Jenkins permalink (for example, lastFailedBuild).
+            If None, get the last build.
 
     Returns:
         The direct Jenkins URL of the artifact

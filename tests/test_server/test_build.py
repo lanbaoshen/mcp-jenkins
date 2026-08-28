@@ -198,3 +198,77 @@ async def test_get_build_artifact_url_with_number(mock_jenkins, mocker):
     mock_jenkins.get_item.assert_not_called()
     mock_jenkins.get_build_artifact_url.assert_called_once_with(fullname='job1', number=5, relative_path='report.html')
     assert result == 'https://jenkins.example.com/job/job1/5/artifact/report.html'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('tool', 'client_method', 'tool_kwargs', 'client_kwargs', 'return_value'),
+    [
+        (
+            build.get_build,
+            'get_build',
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            Build(number=1, url='1', building=False, timestamp=1234567890),
+        ),
+        (
+            build.get_build_scripts,
+            'get_build_replay',
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            BuildReplay(scripts=['script']),
+        ),
+        (
+            build.get_build_console_output,
+            'get_build_console_output',
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild', 'pattern': None, 'offset': 0, 'limit': None},
+            'console output',
+        ),
+        (
+            build.get_build_test_report,
+            'get_build_test_report',
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {},
+        ),
+        (
+            build.get_build_parameters,
+            'get_build_parameters',
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {},
+        ),
+        (
+            build.get_all_build_artifacts,
+            'get_build_artifacts',
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild'},
+            [],
+        ),
+        (
+            build.get_build_artifact,
+            'get_build_artifact',
+            {'fullname': 'job1', 'number': 'lastFailedBuild', 'relative_path': 'report.txt'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild', 'relative_path': 'report.txt'},
+            b'data',
+        ),
+        (
+            build.get_build_artifact_url,
+            'get_build_artifact_url',
+            {'fullname': 'job1', 'number': 'lastFailedBuild', 'relative_path': 'report.txt'},
+            {'fullname': 'job1', 'number': 'lastFailedBuild', 'relative_path': 'report.txt'},
+            'https://jenkins.example.com/job/job1/lastFailedBuild/artifact/report.txt',
+        ),
+    ],
+)
+async def test_read_build_tools_pass_permalink_to_client(
+    mock_jenkins, mocker, tool, client_method, tool_kwargs, client_kwargs, return_value
+):
+    client = getattr(mock_jenkins, client_method)
+    client.return_value = return_value
+
+    await tool(mocker.Mock(), **tool_kwargs)
+
+    mock_jenkins.get_item.assert_not_called()
+    client.assert_called_once_with(**client_kwargs)
