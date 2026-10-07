@@ -171,6 +171,7 @@ Note: this is a liveness check only — it does not verify connectivity to the u
 | `get_build_console_output` | Get the console output of a specific build.         |
 | `get_build_parameters`     | Get the parameters of a specific build.             |
 | `get_build_test_report`    | Get the test report of a specific build.            |
+| `get_build_test_failures`  | Get the failing tests of a specific build.          |
 | `get_running_builds`       | Get all currently running builds in Jenkins.        |
 | `stop_build`               | Stop a specific build by job name and build number. |
 | `get_pending_inputs`       | Get the pending input steps of a build paused for input. |
