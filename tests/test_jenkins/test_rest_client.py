@@ -1,5 +1,6 @@
 import pytest
 from requests import HTTPError
+from requests.auth import HTTPBasicAuth
 
 from mcp_jenkins.jenkins import Jenkins, PendingInputsUnavailableError
 from mcp_jenkins.jenkins.model.build import Artifact, Build, BuildReplay, PendingInput
@@ -38,6 +39,22 @@ def jenkins(mocker):
         return_value={'Jenkins-Crumb': 'crumb-value'},
     )
     return jenkins
+
+
+class TestAuth:
+    @pytest.mark.parametrize(('username', 'password'), [(None, None), ('', '')])
+    def test_no_credentials_leaves_session_anonymous(self, mock_session, username, password):
+        # A real Session starts with auth=None; the Mock would otherwise auto-create the attribute.
+        mock_session.auth = None
+
+        Jenkins(url='https://example.com/', username=username, password=password)
+
+        assert mock_session.auth is None
+
+    def test_credentials_set_basic_auth(self, mock_session):
+        Jenkins(url='https://example.com/', username='alice', password='s3cret')
+
+        assert mock_session.auth == HTTPBasicAuth('alice', 's3cret')
 
 
 def test_endpoint_url(jenkins):
