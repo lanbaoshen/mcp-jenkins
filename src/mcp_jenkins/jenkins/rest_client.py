@@ -150,21 +150,30 @@ class Jenkins:
 
         return self._crumb_header
 
-    def _parse_fullname(self, fullname: str) -> tuple[str, str]:
-        """Parse a fullname into folder URL and short name.
+    # A matrix configuration segment is a comma-separated list of axis=value pairs, e.g. "jdk=17,label=linux"
+    _MATRIX_CONFIGURATION = re.compile(r'^[^=,]+=[^,]*(,[^=,]+=[^,]*)*$')
+
+    def _job_path(self, fullname: str) -> str:
+        """Build the Jenkins URL path of a job from its fullname.
+
+        Every folder or job segment becomes "job/<segment>". A matrix configuration segment (the
+        "axis=value,..." part of a fullname such as "folder/matrix-job/jdk=17,label=linux", as Jenkins
+        reports it in `fullName`) is a child of its matrix project but is addressed without the "job/"
+        prefix, so its builds resolve to "job/matrix-job/jdk=17,label=linux/<number>/".
 
         Args:
             fullname: A string representing the full path (e.g., "folder1/folder2/name").
 
         Returns:
-            A tuple containing:
-                - folder: The constructed folder URL (e.g., "job/folder1/job/folder2/").
-                - name: The last component of the path (e.g., "name").
+            The job URL path (e.g., "job/folder1/job/folder2/job/name").
         """
-        parts = fullname.split('/')
-        name = parts[-1]
-        folder = f'job/{"/job/".join(parts[:-1])}/' if len(parts) > 1 else ''
-        return folder, name
+        segments = []
+        for index, part in enumerate(fullname.split('/')):
+            if index > 0 and self._MATRIX_CONFIGURATION.match(part):
+                segments.append(part)
+            else:
+                segments.append(f'job/{part}')
+        return '/'.join(segments)
 
     def _build_view_path(self, view_path: str) -> str:
         """Build a Jenkins view URL path from a slash-separated view path.
@@ -300,10 +309,10 @@ class Jenkins:
         Returns:
             The Build object.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         response = self.request(
             'GET',
-            rest_endpoint.BUILD(folder=folder, name=name, number=number, depth=depth),
+            rest_endpoint.BUILD(job_path=job_path, number=number, depth=depth),
         )
         return Build.model_validate(response.json())
 
@@ -328,11 +337,11 @@ class Jenkins:
         Returns:
             The console output as a string.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         compiled = re.compile(pattern) if pattern else None
 
         response = self._session.get(
-            self.endpoint_url(rest_endpoint.BUILD_CONSOLE_OUTPUT(folder=folder, name=name, number=number)),
+            self.endpoint_url(rest_endpoint.BUILD_CONSOLE_OUTPUT(job_path=job_path, number=number)),
             timeout=self.timeout,
             stream=True,
         )
@@ -361,8 +370,8 @@ class Jenkins:
             fullname: The fullname of the job.
             number: The build number.
         """
-        folder, name = self._parse_fullname(fullname)
-        self.request('POST', rest_endpoint.BUILD_STOP(folder=folder, name=name, number=number))
+        job_path = self._job_path(fullname)
+        self.request('POST', rest_endpoint.BUILD_STOP(job_path=job_path, number=number))
 
     def get_build_pending_inputs(self, *, fullname: str, number: int) -> list[PendingInput]:
         """Get the pending input steps of a specific build.
@@ -381,12 +390,12 @@ class Jenkins:
         Raises:
             PendingInputsUnavailableError: If the wfapi pending input endpoint is not available.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
 
         try:
             response = self.request(
                 'GET',
-                rest_endpoint.BUILD_PENDING_INPUTS(folder=folder, name=name, number=number),
+                rest_endpoint.BUILD_PENDING_INPUTS(job_path=job_path, number=number),
             )
         except HTTPError as e:
             # A transport-level HTTPError carries no response, so the status can only be read defensively.
@@ -419,7 +428,7 @@ class Jenkins:
             action: 'proceed' submits parameters, 'proceedEmpty' proceeds without any, 'abort' aborts the build.
             parameters: A mapping of parameter name to value, only used when action is 'proceed'.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
 
         # Stapler reads the submitted form from the `json` field, so it must be present even when the
         # input step declares no parameters. `proceedEmpty` and `abort` take no body at all.
@@ -431,8 +440,7 @@ class Jenkins:
         self.request(
             'POST',
             rest_endpoint.BUILD_INPUT(
-                folder=folder,
-                name=name,
+                job_path=job_path,
                 number=number,
                 input_id=quote(input_id, safe=''),
                 action=action,
@@ -453,8 +461,8 @@ class Jenkins:
             The build replay object containing the pipeline scripts.
         """
 
-        folder, name = self._parse_fullname(fullname)
-        response = self.request('GET', rest_endpoint.BUILD_REPLAY(folder=folder, name=name, number=number))
+        job_path = self._job_path(fullname)
+        response = self.request('GET', rest_endpoint.BUILD_REPLAY(job_path=job_path, number=number))
 
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -471,10 +479,10 @@ class Jenkins:
         Returns:
             A dictionary representing the build parameters.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         response = self.request(
             'GET',
-            rest_endpoint.BUILD_PARAMETERS(folder=folder, name=name, number=number),
+            rest_endpoint.BUILD_PARAMETERS(job_path=job_path, number=number),
         )
 
         for action in response.json().get('actions', []):
@@ -493,10 +501,10 @@ class Jenkins:
         Returns:
             A dictionary representing the test report.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         response = self.request(
             'GET',
-            rest_endpoint.BUILD_TEST_REPORT(folder=folder, name=name, number=number, depth=depth),
+            rest_endpoint.BUILD_TEST_REPORT(job_path=job_path, number=number, depth=depth),
         )
         return response.json()
 
@@ -510,10 +518,10 @@ class Jenkins:
         Returns:
             A list of Artifact objects.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         response = self.request(
             'GET',
-            rest_endpoint.BUILD_ARTIFACTS(folder=folder, name=name, number=number),
+            rest_endpoint.BUILD_ARTIFACTS(job_path=job_path, number=number),
         )
         return [Artifact.model_validate(a) for a in response.json().get('artifacts', [])]
 
@@ -528,10 +536,10 @@ class Jenkins:
         Returns:
             The artifact content as bytes.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         response = self.request(
             'GET',
-            rest_endpoint.BUILD_ARTIFACT(folder=folder, name=name, number=number, relative_path=relative_path),
+            rest_endpoint.BUILD_ARTIFACT(job_path=job_path, number=number, relative_path=relative_path),
         )
         return response.content
 
@@ -546,9 +554,9 @@ class Jenkins:
         Returns:
             The direct URL of the artifact as a string.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         return self.endpoint_url(
-            rest_endpoint.BUILD_ARTIFACT(folder=folder, name=name, number=number, relative_path=relative_path),
+            rest_endpoint.BUILD_ARTIFACT(job_path=job_path, number=number, relative_path=relative_path),
         )
 
     def get_running_builds(self) -> list[Build]:
@@ -612,8 +620,8 @@ class Jenkins:
         Returns:
             The ItemType object representing the item.
         """
-        folder, name = self._parse_fullname(fullname)
-        response = self.request('GET', rest_endpoint.ITEM(folder=folder, name=name, depth=depth))
+        job_path = self._job_path(fullname)
+        response = self.request('GET', rest_endpoint.ITEM(job_path=job_path, depth=depth))
         return serialize_item(response.json())
 
     def get_last_build_number(self, *, fullname: str) -> int | None:
@@ -628,8 +636,8 @@ class Jenkins:
         Raises:
             ValueError: If the item cannot have builds at all (e.g. a folder or multibranch parent).
         """
-        folder, name = self._parse_fullname(fullname)
-        response = self.request('GET', rest_endpoint.ITEM_LAST_BUILD_NUMBER(folder=folder, name=name))
+        job_path = self._job_path(fullname)
+        response = self.request('GET', rest_endpoint.ITEM_LAST_BUILD_NUMBER(job_path=job_path))
 
         data = response.json()
         # Only Job subtypes expose `buildable`; its absence means the item is a folder-like container
@@ -648,8 +656,8 @@ class Jenkins:
         Returns:
             The item configuration as an XML string.
         """
-        folder, name = self._parse_fullname(fullname)
-        response = self.request('GET', rest_endpoint.ITEM_CONFIG(folder=folder, name=name))
+        job_path = self._job_path(fullname)
+        response = self.request('GET', rest_endpoint.ITEM_CONFIG(job_path=job_path))
         return response.text
 
     def set_item_config(self, *, fullname: str, config_xml: str) -> None:
@@ -659,10 +667,10 @@ class Jenkins:
             fullname: The full name of the item (e.g., "folder1/folder2/item").
             config_xml: The item configuration as an XML string.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         self.request(
             'POST',
-            rest_endpoint.ITEM_CONFIG(folder=folder, name=name),
+            rest_endpoint.ITEM_CONFIG(job_path=job_path),
             headers=self.DEFAULT_HEADERS,
             data=config_xml,
         )
@@ -730,10 +738,10 @@ class Jenkins:
         Return:
             The queue item number of the job.
         """
-        folder, name = self._parse_fullname(fullname)
+        job_path = self._job_path(fullname)
         response = self.request(
             'POST',
-            rest_endpoint.ITEM_BUILD(folder=folder, name=name, build_type=build_type),
+            rest_endpoint.ITEM_BUILD(job_path=job_path, build_type=build_type),
             data=data,
         )
 

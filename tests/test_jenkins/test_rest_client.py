@@ -227,13 +227,19 @@ class TestCrumbRetry:
         assert mock_session.request.call_count == 3
 
 
-def test_parse_fullname(jenkins):
-    assert jenkins._parse_fullname('job-name') == ('', 'job-name')
-    assert jenkins._parse_fullname('folder/job-name') == ('job/folder/', 'job-name')
-    assert jenkins._parse_fullname('folder/subfolder/job-name') == (
-        'job/folder/job/subfolder/',
-        'job-name',
+def test_job_path(jenkins):
+    assert jenkins._job_path('job-name') == 'job/job-name'
+    assert jenkins._job_path('folder/job-name') == 'job/folder/job/job-name'
+    assert jenkins._job_path('folder/subfolder/job-name') == 'job/folder/job/subfolder/job/job-name'
+
+
+def test_job_path_matrix_configuration(jenkins):
+    assert jenkins._job_path('matrix-job/jdk=17') == 'job/matrix-job/jdk=17'
+    assert jenkins._job_path('folder/matrix-job/jdk=17,label=test:linux') == (
+        'job/folder/job/matrix-job/jdk=17,label=test:linux'
     )
+    # A top-level job is never a configuration, whatever its name
+    assert jenkins._job_path('a=b') == 'job/a=b'
 
 
 class TestView:
@@ -588,6 +594,17 @@ class TestBuild:
 
         mock_session.get.assert_called_once_with(
             'https://example.com/job/example-job/1/consoleText',
+            timeout=jenkins.timeout,
+            stream=True,
+        )
+
+    def test_get_build_console_output_matrix_configuration(self, jenkins, mock_session, mocker):
+        self._mock_console_lines(mock_session, mocker, ['line1'])
+
+        jenkins.get_build_console_output(fullname='matrix-job/jdk=17,label=linux', number=5)
+
+        mock_session.get.assert_called_once_with(
+            'https://example.com/job/matrix-job/jdk=17,label=linux/5/consoleText',
             timeout=jenkins.timeout,
             stream=True,
         )
