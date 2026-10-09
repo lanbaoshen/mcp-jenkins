@@ -873,6 +873,107 @@ class TestBuild:
             ]
         }
 
+    def test_get_build_test_failures(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                '_class': 'hudson.tasks.junit.TestResult',
+                'failCount': 2,
+                'passCount': 1,
+                'skipCount': 0,
+                'suites': [
+                    {
+                        'name': 'Example Suite',
+                        'cases': [
+                            {'className': 'ExampleTest', 'name': 'test_pass', 'status': 'PASSED', 'errorDetails': None},
+                            {
+                                'className': 'ExampleTest',
+                                'name': 'test_fail',
+                                'status': 'FAILED',
+                                'age': 1,
+                                'errorDetails': 'AssertionError',
+                                'errorStackTrace': 'x' * 10,
+                            },
+                            {'className': 'ExampleTest', 'name': 'test_regression', 'status': 'REGRESSION'},
+                        ],
+                    }
+                ],
+            }
+        )
+
+        assert jenkins.get_build_test_failures(fullname='example-job', number=1, max_stack_trace_length=4) == {
+            'failCount': 2,
+            'passCount': 1,
+            'skipCount': 0,
+            'truncated': False,
+            'failures': [
+                {
+                    'className': 'ExampleTest',
+                    'name': 'test_fail',
+                    'status': 'FAILED',
+                    'age': 1,
+                    'errorDetails': 'AssertionError',
+                    'errorStackTrace': 'xxxx... (truncated)',
+                    'suite': 'Example Suite',
+                },
+                {
+                    'className': 'ExampleTest',
+                    'name': 'test_regression',
+                    'status': 'REGRESSION',
+                    'suite': 'Example Suite',
+                },
+            ],
+        }
+
+        url = mock_session.request.call_args.kwargs['url']
+        assert url.startswith('https://example.com/job/example-job/1/testReport/api/json?tree=')
+        assert 'childReports[' in url
+
+    def test_get_build_test_failures_matrix(self, jenkins, mock_session, mocker):
+        def child_report(url: str, failing: str) -> dict:
+            return {
+                'child': {'url': url},
+                'result': {
+                    'suites': [
+                        {
+                            'name': 'Suite',
+                            'cases': [
+                                {'className': 'T', 'name': 'ok', 'status': 'FIXED'},
+                                {'className': 'T', 'name': failing, 'status': 'FAILED'},
+                            ],
+                        }
+                    ]
+                },
+            }
+
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                '_class': 'hudson.tasks.test.MatrixTestResult',
+                'failCount': 2,
+                'skipCount': 0,
+                'totalCount': 4,
+                'childReports': [
+                    child_report('https://example.com/job/m/a=1/3/', 'first'),
+                    child_report('https://example.com/job/m/a=2/3/', 'second'),
+                ],
+            }
+        )
+
+        assert jenkins.get_build_test_failures(fullname='m', number=3, limit=1) == {
+            'failCount': 2,
+            'skipCount': 0,
+            'totalCount': 4,
+            'truncated': True,
+            'failures': [
+                {
+                    'className': 'T',
+                    'name': 'first',
+                    'status': 'FAILED',
+                    'suite': 'Suite',
+                    'build_url': 'https://example.com/job/m/a=1/3/',
+                },
+            ],
+        }
+
     def test_get_running_builds(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(
             json=lambda: {

@@ -500,6 +500,80 @@ class Jenkins:
         )
         return response.json()
 
+    # Only the fields needed to report failures: a full test report repeats every passing case
+    _TEST_SUITES_TREE = 'suites[name,cases[className,name,status,age,duration,errorDetails,errorStackTrace]]'
+    _TEST_FAILURES_TREE = (
+        f'failCount,passCount,skipCount,totalCount,{_TEST_SUITES_TREE},'
+        f'childReports[child[url],result[failCount,passCount,skipCount,{_TEST_SUITES_TREE}]]'
+    )
+    _FAILED_STATUSES = frozenset({'FAILED', 'REGRESSION'})
+
+    def get_build_test_failures(
+        self,
+        *,
+        fullname: str,
+        number: int,
+        limit: int | None = 50,
+        max_stack_trace_length: int = 2000,
+    ) -> dict:
+        """Get the failing test cases of a specific build, without the passing ones.
+
+        Works for a regular build and for a matrix build, whose aggregated report holds one child
+        report per configuration; each failure of a matrix build carries the URL of its configuration
+        build.
+
+        Args:
+            fullname: The fullname of the job.
+            number: The build number.
+            limit: Maximum number of failures to return, None for all of them.
+            max_stack_trace_length: Stack traces longer than this are cut to this many characters.
+
+        Returns:
+            A dictionary with the counts of the report, the failures and whether the failures were truncated.
+        """
+        folder, name = self._parse_fullname(fullname)
+        response = self.request(
+            'GET',
+            rest_endpoint.BUILD_TEST_REPORT_TREE(
+                folder=folder,
+                name=name,
+                number=number,
+                tree=self._TEST_FAILURES_TREE,
+            ),
+        )
+        report = response.json()
+
+        failures = self._collect_test_failures(report, build_url=None, max_stack_trace_length=max_stack_trace_length)
+        for child_report in report.get('childReports', []):
+            failures.extend(
+                self._collect_test_failures(
+                    child_report.get('result') or {},
+                    build_url=(child_report.get('child') or {}).get('url'),
+                    max_stack_trace_length=max_stack_trace_length,
+                )
+            )
+
+        result = {key: report[key] for key in ('failCount', 'passCount', 'skipCount', 'totalCount') if key in report}
+        result['truncated'] = limit is not None and len(failures) > limit
+        result['failures'] = failures if limit is None else failures[:limit]
+        return result
+
+    def _collect_test_failures(self, report: dict, *, build_url: str | None, max_stack_trace_length: int) -> list[dict]:
+        failures = []
+        for suite in report.get('suites', []):
+            for case in suite.get('cases', []):
+                if case.get('status') not in self._FAILED_STATUSES:
+                    continue
+                failure = {key: value for key, value in case.items() if value is not None and not key.startswith('_')}
+                failure['suite'] = suite.get('name')
+                stack_trace = failure.get('errorStackTrace')
+                if stack_trace and len(stack_trace) > max_stack_trace_length:
+                    failure['errorStackTrace'] = stack_trace[:max_stack_trace_length] + '... (truncated)'
+                if build_url:
+                    failure['build_url'] = build_url
+                failures.append(failure)
+        return failures
+
     def get_build_artifacts(self, *, fullname: str, number: int) -> list[Artifact]:
         """Get the list of artifacts from a specific build.
 
