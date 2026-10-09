@@ -68,13 +68,19 @@ def jenkins(ctx: Context) -> Jenkins:
             f'Unexpected error retrieving Jenkins auth from request, falling back to environment variables: {e}'
         )
 
-    if not all((jenkins_url, jenkins_username, jenkins_password)):
+    # Checked on the merged values: e.g. username from env and password from a header is a valid pair.
+    # Exactly one of username/password is almost always a config typo, so it fails instead of going anonymous.
+    if not jenkins_url or bool(jenkins_username) != bool(jenkins_password):
         msg = (
-            'Jenkins authentication details are missing. '
+            'Jenkins connection details are incomplete: the URL is required, '
+            'and username and password must be provided together or not at all. '
             'Please provide them via x-jenkins-* headers '
             'or CLI arguments (--jenkins-url, --jenkins-username, --jenkins-password).'
         )
         raise ValueError(msg)
+
+    if not jenkins_username:
+        logger.info(f'No Jenkins credentials provided, accessing {jenkins_url} anonymously')
 
     logger.info(
         f'Creating Jenkins client with url: '

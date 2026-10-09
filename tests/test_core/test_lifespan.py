@@ -117,6 +117,72 @@ class TestJenkins:
         with pytest.raises(ValueError):
             jenkins(mock_ctx)
 
+    def test_url_only_creates_anonymous_client(self, mock_jenkins, mock_get_http_request, mock_ctx, mocker):
+        mock_logger = mocker.patch('mcp_jenkins.core.lifespan.logger')
+        mock_get_http_request.side_effect = RuntimeError('Not available http request')
+        mock_ctx.request_context.lifespan_context.jenkins_username = None
+        mock_ctx.request_context.lifespan_context.jenkins_password = None
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once_with(
+            url='https://jenkins.example.com',
+            username=None,
+            password=None,
+            timeout=5,
+            verify_ssl=True,
+        )
+        mock_logger.info.assert_any_call(
+            'No Jenkins credentials provided, accessing https://jenkins.example.com anonymously'
+        )
+
+    def test_empty_credentials_mean_anonymous(self, mock_jenkins, mock_get_http_request, mock_ctx, mocker):
+        mock_logger = mocker.patch('mcp_jenkins.core.lifespan.logger')
+        mock_get_http_request.side_effect = RuntimeError('Not available http request')
+        mock_ctx.request_context.lifespan_context.jenkins_username = ''
+        mock_ctx.request_context.lifespan_context.jenkins_password = ''
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once()
+        mock_logger.info.assert_any_call(
+            'No Jenkins credentials provided, accessing https://jenkins.example.com anonymously'
+        )
+
+    def test_username_without_password(self, mock_get_http_request, mock_ctx):
+        mock_get_http_request.side_effect = RuntimeError('Not available http request')
+        mock_ctx.request_context.lifespan_context.jenkins_password = None
+
+        with pytest.raises(ValueError, match='username and password must be provided together'):
+            jenkins(mock_ctx)
+
+    def test_missing_url(self, mock_get_http_request, mock_ctx):
+        mock_get_http_request.side_effect = RuntimeError('Not available http request')
+        mock_ctx.request_context.lifespan_context.jenkins_url = None
+
+        with pytest.raises(ValueError, match='the URL is required'):
+            jenkins(mock_ctx)
+
+    def test_username_from_env_password_from_header(self, mock_jenkins, mock_get_http_request, mock_ctx, mocker):
+        mock_ctx.request_context.lifespan_context.jenkins_password = None
+        mock_get_http_request.return_value = mocker.Mock(
+            state=mocker.Mock(
+                jenkins_url=None,
+                jenkins_username=None,
+                jenkins_password='header-password',
+            )
+        )
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once_with(
+            url='https://jenkins.example.com',
+            username='username',
+            password='header-password',
+            timeout=5,
+            verify_ssl=True,
+        )
+
     def test_ctx_jenkins_exists(self, mock_jenkins, mock_get_http_request, mock_ctx, mocker):
         existing_jenkins = mocker.Mock()
 
