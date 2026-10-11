@@ -57,9 +57,9 @@ async def set_item_config(ctx: Context, fullname: str, config_xml: str) -> None:
 @mcp.tool(tags=['read'])
 async def query_items(
     ctx: Context,
-    class_pattern: str = None,
-    fullname_pattern: str = None,
-    color_pattern: str = None,
+    class_pattern: str | None = None,
+    fullname_pattern: str | None = None,
+    color_pattern: str | None = None,
     folder_depth: int | None = None,
 ) -> list[dict]:
     """Query items from Jenkins
