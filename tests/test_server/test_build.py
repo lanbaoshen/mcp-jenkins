@@ -103,6 +103,24 @@ async def test_get_build_test_reports(mock_jenkins, mocker):
 
 
 @pytest.mark.asyncio
+async def test_get_build_test_failures(mock_jenkins, mocker):
+    mock_jenkins.get_last_build_number.return_value = 7
+    mock_jenkins.get_build_test_failures.return_value = {'failCount': 0, 'truncated': False, 'failures': []}
+
+    assert await build.get_build_test_failures(mocker.Mock(), fullname='job1', limit=10) == {
+        'failCount': 0,
+        'truncated': False,
+        'failures': [],
+    }
+    mock_jenkins.get_build_test_failures.assert_called_once_with(
+        fullname='job1',
+        number=7,
+        limit=10,
+        max_stack_trace_length=2000,
+    )
+
+
+@pytest.mark.asyncio
 async def test_get_build_parameters(mock_jenkins, mocker):
     mock_jenkins.get_last_build_number.return_value = 1
     mock_jenkins.get_build_parameters.return_value = {'BRANCH': 'main', 'DEBUG': True}

@@ -102,6 +102,9 @@ async def get_build_console_output(
 async def get_build_test_report(ctx: Context, fullname: str, number: int | None = None) -> dict:
     """Get the test report of a specific build in Jenkins
 
+    The report lists every test case, passing ones included, so it can be very large; use
+    get_build_test_failures to see what failed.
+
     Args:
         fullname: The fullname of the job
         number: The number of the build, if None, get the last build
@@ -112,6 +115,38 @@ async def get_build_test_report(ctx: Context, fullname: str, number: int | None 
     number = _resolve_build_number(jenkins(ctx), fullname, number)
 
     return jenkins(ctx).get_build_test_report(fullname=fullname, number=number)
+
+
+@mcp.tool(tags=['read'])
+async def get_build_test_failures(
+    ctx: Context,
+    fullname: str,
+    number: int | None = None,
+    limit: int | None = 50,
+    max_stack_trace_length: int = 2000,
+) -> dict:
+    """Get the failing tests of a specific build in Jenkins, with their error details
+
+    For a matrix build, the failures of all configurations are returned, each with the URL of its
+    configuration build.
+
+    Args:
+        fullname: The fullname of the job
+        number: The number of the build, if None, get the last build
+        limit: Maximum number of failures to return, None for all of them
+        max_stack_trace_length: Stack traces longer than this are cut to this many characters
+
+    Returns:
+        The test counts of the build, its failures and whether the failures were truncated to the limit
+    """
+    number = _resolve_build_number(jenkins(ctx), fullname, number)
+
+    return jenkins(ctx).get_build_test_failures(
+        fullname=fullname,
+        number=number,
+        limit=limit,
+        max_stack_trace_length=max_stack_trace_length,
+    )
 
 
 @mcp.tool(tags=['read'])
