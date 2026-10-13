@@ -1,7 +1,8 @@
 import pytest
+from fastmcp import Client
 
 from mcp_jenkins.jenkins.model.item import Folder, Job
-from mcp_jenkins.server import item
+from mcp_jenkins.server import item, mcp
 
 
 @pytest.fixture
@@ -87,6 +88,25 @@ async def test_query_items(mock_jenkins, mocker):
             'url': '1',
         },
     ]
+
+
+@pytest.mark.asyncio
+async def test_query_items_accepts_explicit_null(mock_jenkins):
+    mock_jenkins.query_items.return_value = []
+
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            'query_items',
+            {'class_pattern': None, 'fullname_pattern': None, 'color_pattern': None, 'folder_depth': None},
+        )
+
+    assert result.is_error is False
+    mock_jenkins.query_items.assert_called_once_with(
+        class_pattern=None,
+        fullname_pattern=None,
+        color_pattern=None,
+        folder_depth=None,
+    )
 
 
 @pytest.mark.asyncio
