@@ -15,7 +15,7 @@ from mcp_jenkins.jenkins.model.node import (
     NodeExecutor,
     NodeExecutorCurrentExecutable,
 )
-from mcp_jenkins.jenkins.model.queue import Queue, QueueItem, QueueItemTask
+from mcp_jenkins.jenkins.model.queue import Queue, QueueItem, QueueItemExecutable, QueueItemTask
 
 
 @pytest.fixture(autouse=True)
@@ -403,6 +403,44 @@ class TestQueue:
                 url='https://example.com/job/example-job/',
             ),
         )
+
+    def test_get_queue_item_with_executable(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'id': 1,
+                'inQueueSince': 1767975558000,
+                'url': 'https://example.com/queue/item/1/',
+                'why': None,
+                'task': {
+                    'fullDisplayName': 'Example Job',
+                    'name': 'example-job',
+                    'url': 'https://example.com/job/example-job/',
+                },
+                'executable': {
+                    'number': 42,
+                    'url': 'https://example.com/job/example-job/42/',
+                },
+            }
+        )
+
+        assert jenkins.get_queue_item(id=1).executable == QueueItemExecutable(
+            number=42,
+            url='https://example.com/job/example-job/42/',
+        )
+
+    def test_get_queue_item_with_empty_executable(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(
+            json=lambda: {
+                'id': 1,
+                'inQueueSince': 1767975558000,
+                'url': 'https://example.com/queue/item/1/',
+                'why': 'Waiting for next available executor',
+                'task': {'name': 'example-job'},
+                'executable': {},
+            }
+        )
+
+        assert jenkins.get_queue_item(id=1).executable is None
 
     def test_cancel_queue_item(self, jenkins, mock_session):
         assert jenkins.cancel_queue_item(id=42) is None
