@@ -152,3 +152,28 @@ def test_main_env_file_autodiscovery(mocker, monkeypatch, tmp_path):
     assert os.environ['jenkins_url'] == 'https://auto.example.com'
     assert os.environ['jenkins_username'] == 'auto-username'
     assert os.environ['jenkins_password'] == 'auto-password'
+
+
+def test_main_stateless_http(mocker):
+    mocker.patch('mcp_jenkins.asyncio')
+    mock_mcp = mocker.patch('mcp_jenkins.server.mcp')
+
+    CliRunner().invoke(
+        main,
+        ['--transport', 'streamable-http', '--host', '127.0.0.1', '--port', '9887', '--stateless-http'],
+    )
+
+    mock_mcp.run_async.assert_called_once_with(
+        transport='streamable-http', host='127.0.0.1', port=9887, stateless_http=True
+    )
+
+
+def test_main_stateless_http_requires_streamable_http(mocker):
+    mocker.patch('mcp_jenkins.asyncio')
+    mock_mcp = mocker.patch('mcp_jenkins.server.mcp')
+
+    result = CliRunner().invoke(main, ['--transport', 'sse', '--stateless-http'])
+
+    assert result.exit_code != 0
+    assert '--stateless-http requires --transport streamable-http' in result.output
+    mock_mcp.run_async.assert_not_called()
