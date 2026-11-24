@@ -11,6 +11,7 @@ JENKINS_ENV_VARS = (
     'jenkins_timeout',
     'jenkins_verify_ssl',
     'jenkins_session_singleton',
+    'jenkins_require_credentials',
 )
 
 
@@ -152,3 +153,44 @@ def test_main_env_file_autodiscovery(mocker, monkeypatch, tmp_path):
     assert os.environ['jenkins_url'] == 'https://auto.example.com'
     assert os.environ['jenkins_username'] == 'auto-username'
     assert os.environ['jenkins_password'] == 'auto-password'
+
+
+def test_main_require_jenkins_credentials(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+
+    result = CliRunner().invoke(main, ['--transport', 'stdio', '--require-jenkins-credentials'])
+
+    assert result.exit_code == 0
+    assert os.environ['jenkins_require_credentials'] == 'true'
+
+
+def test_main_require_jenkins_credentials_env_var(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv('JENKINS_REQUIRE_CREDENTIALS', 'true')
+
+    result = CliRunner().invoke(main, ['--transport', 'stdio'])
+
+    assert result.exit_code == 0
+    assert os.environ['jenkins_require_credentials'] == 'true'
+
+
+def test_main_require_jenkins_credentials_is_off_by_default(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv('JENKINS_REQUIRE_CREDENTIALS', raising=False)
+
+    result = CliRunner().invoke(main, ['--transport', 'stdio'])
+
+    assert result.exit_code == 0
+    assert os.environ['jenkins_require_credentials'] == 'false'
