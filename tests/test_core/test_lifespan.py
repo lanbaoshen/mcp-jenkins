@@ -28,6 +28,7 @@ class TestLifespan:
                 'jenkins_timeout': '5',
                 'jenkins_verify_ssl': 'true',
                 'jenkins_session_singleton': 'true',
+                'jenkins_require_credentials': 'true',
             }
             return env.get(key, default)
 
@@ -39,6 +40,7 @@ class TestLifespan:
             assert context.jenkins_timeout == 5
             assert context.jenkins_verify_ssl is True
             assert context.jenkins_session_singleton is True
+            assert context.jenkins_require_credentials is True
 
 
 class TestJenkins:
@@ -61,6 +63,7 @@ class TestJenkins:
                     jenkins_timeout=5,
                     jenkins_verify_ssl=True,
                     jenkins_session_singleton=False,
+                    jenkins_require_credentials=False,
                 )
             )
         )
@@ -148,6 +151,49 @@ class TestJenkins:
         mock_logger.info.assert_any_call(
             'No Jenkins credentials provided, accessing https://jenkins.example.com anonymously'
         )
+
+    def test_require_credentials_rejects_anonymous(self, mock_jenkins, mock_get_http_request, mock_ctx):
+        mock_get_http_request.side_effect = RuntimeError('Not available http request')
+        mock_ctx.request_context.lifespan_context.jenkins_require_credentials = True
+        mock_ctx.request_context.lifespan_context.jenkins_username = None
+        mock_ctx.request_context.lifespan_context.jenkins_password = None
+
+        with pytest.raises(ValueError, match='Jenkins credentials are required'):
+            jenkins(mock_ctx)
+
+        mock_jenkins.assert_not_called()
+
+    def test_require_credentials_accepts_header_credentials(
+        self, mock_jenkins, mock_get_http_request, mock_ctx, mocker
+    ):
+        mock_ctx.request_context.lifespan_context.jenkins_require_credentials = True
+        mock_ctx.request_context.lifespan_context.jenkins_username = None
+        mock_ctx.request_context.lifespan_context.jenkins_password = None
+        mock_get_http_request.return_value = mocker.Mock(
+            state=mocker.Mock(
+                jenkins_url=None,
+                jenkins_username='state-username',
+                jenkins_password='state-password',
+            )
+        )
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once_with(
+            url='https://jenkins.example.com',
+            username='state-username',
+            password='state-password',
+            timeout=5,
+            verify_ssl=True,
+        )
+
+    def test_require_credentials_accepts_cli_credentials(self, mock_jenkins, mock_get_http_request, mock_ctx):
+        mock_get_http_request.side_effect = RuntimeError('Not available http request')
+        mock_ctx.request_context.lifespan_context.jenkins_require_credentials = True
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once()
 
     def test_username_without_password(self, mock_get_http_request, mock_ctx):
         mock_get_http_request.side_effect = RuntimeError('Not available http request')

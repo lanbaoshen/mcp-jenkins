@@ -47,6 +47,14 @@ def _load_env_file(ctx: click.Context, param: click.Parameter, value: str | None
     help='Whether to verify SSL certificates, default is True',
 )
 @click.option(
+    '--require-jenkins-credentials',
+    default=False,
+    is_flag=True,
+    envvar='JENKINS_REQUIRE_CREDENTIALS',
+    help='Reject requests that have no Jenkins username and password instead of accessing Jenkins anonymously, '
+    'default is False',
+)
+@click.option(
     '--read-only',
     default=False,
     is_flag=True,
@@ -84,6 +92,7 @@ def main(
     jenkins_password: str,
     jenkins_timeout: int,
     jenkins_verify_ssl: bool,  # noqa: FBT001
+    require_jenkins_credentials: bool,  # noqa: FBT001
     read_only: bool,  # noqa: FBT001
     tool_regex: str,
     jenkins_session_singleton: bool,  # noqa: FBT001
@@ -101,6 +110,7 @@ def main(
     os.environ['jenkins_timeout'] = str(jenkins_timeout)
     os.environ['jenkins_verify_ssl'] = str(jenkins_verify_ssl).lower()
     os.environ['jenkins_session_singleton'] = str(jenkins_session_singleton).lower()
+    os.environ['jenkins_require_credentials'] = str(require_jenkins_credentials).lower()
 
     from mcp_jenkins.server import mcp
 

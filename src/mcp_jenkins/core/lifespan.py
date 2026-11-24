@@ -20,6 +20,7 @@ class LifespanContext(BaseModel):
     jenkins_verify_ssl: bool = True
 
     jenkins_session_singleton: bool = True
+    jenkins_require_credentials: bool = False
 
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
     jenkins_timeout = int(os.getenv('jenkins_timeout', '5'))
     jenkins_verify_ssl = os.getenv('jenkins_verify_ssl', 'true').lower() == 'true'
     jenkins_session_singleton = os.getenv('jenkins_session_singleton', 'true').lower() == 'true'
+    jenkins_require_credentials = os.getenv('jenkins_require_credentials', 'false').lower() == 'true'
 
     yield LifespanContext(
         jenkins_url=jenkins_url,
@@ -39,6 +41,7 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
         jenkins_timeout=jenkins_timeout,
         jenkins_verify_ssl=jenkins_verify_ssl,
         jenkins_session_singleton=jenkins_session_singleton,
+        jenkins_require_credentials=jenkins_require_credentials,
     )
 
 
@@ -80,6 +83,13 @@ def jenkins(ctx: Context) -> Jenkins:
         raise ValueError(msg)
 
     if not jenkins_username:
+        if ctx.request_context.lifespan_context.jenkins_require_credentials:
+            msg = (
+                'Jenkins credentials are required: '
+                'provide x-jenkins-username and x-jenkins-password headers '
+                'or CLI arguments (--jenkins-username, --jenkins-password).'
+            )
+            raise ValueError(msg)
         logger.info(f'No Jenkins credentials provided, accessing {jenkins_url} anonymously')
 
     logger.info(
