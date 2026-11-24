@@ -69,6 +69,12 @@ def _load_env_file(ctx: click.Context, param: click.Parameter, value: str | None
     default='stdio',
 )
 @click.option(
+    '--stateless-http',
+    default=False,
+    is_flag=True,
+    help='Run streamable-http without MCP sessions, so any replica can serve any request, default is False',
+)
+@click.option(
     '--host',
     default='0.0.0.0',
     help='Host to bind to for SSE or Streamable HTTP transport',
@@ -88,9 +94,14 @@ def main(
     tool_regex: str,
     jenkins_session_singleton: bool,  # noqa: FBT001
     transport: str,
+    stateless_http: bool,  # noqa: FBT001
     host: str,
     port: int,
 ) -> None:
+    if stateless_http and transport != 'streamable-http':
+        msg = '--stateless-http requires --transport streamable-http'
+        raise click.UsageError(msg)
+
     if jenkins_url:
         os.environ['jenkins_url'] = jenkins_url
     if jenkins_username:
@@ -112,6 +123,8 @@ def main(
 
     if transport == 'stdio':
         asyncio.run(mcp.run_async(transport=transport))
+    elif stateless_http:
+        asyncio.run(mcp.run_async(transport=transport, host=host, port=port, stateless_http=True))
     elif transport in ('sse', 'streamable-http'):
         asyncio.run(mcp.run_async(transport=transport, host=host, port=port))
 

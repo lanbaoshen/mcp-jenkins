@@ -42,6 +42,7 @@ uvx mcp-jenkins --transport streamable-http
 | `--jenkins-session-singleton/--no-jenkins-session-singleton` | Whether to use a singleton Jenkins client for all requests in the same session. Default is True.                | No       |
 | `--read-only`                                                | Whether to enable read-only mode. Default is False                                                              | No       |
 | `--transport`                                                | Transport method to use for communication. Options are `stdio`, `sse` or `streamable-http`. Default is `stdio`. | No       |
+| `--stateless-http`                                           | Run `streamable-http` without MCP sessions: no `mcp-session-id`, and any replica behind a load balancer can serve any request. Only valid with `--transport streamable-http`. Default is False. | No       |
 | `--host`                                                     | Host address for `streamable-http` transport. Default is `0.0.0.0`                                              | No       |
 | `--port`                                                     | Port number for `streamable-http` transport. Default is `9887`.                                                 | No       |
 
