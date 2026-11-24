@@ -28,6 +28,7 @@ class TestLifespan:
                 'jenkins_timeout': '5',
                 'jenkins_verify_ssl': 'true',
                 'jenkins_session_singleton': 'true',
+                'jenkins_lock_url': 'true',
             }
             return env.get(key, default)
 
@@ -39,6 +40,7 @@ class TestLifespan:
             assert context.jenkins_timeout == 5
             assert context.jenkins_verify_ssl is True
             assert context.jenkins_session_singleton is True
+            assert context.jenkins_lock_url is True
 
 
 class TestJenkins:
@@ -61,6 +63,7 @@ class TestJenkins:
                     jenkins_timeout=5,
                     jenkins_verify_ssl=True,
                     jenkins_session_singleton=False,
+                    jenkins_lock_url=False,
                 )
             )
         )
@@ -109,6 +112,46 @@ class TestJenkins:
             timeout=5,
             verify_ssl=True,
         )
+
+    def test_lock_url_ignores_header_url(self, mock_jenkins, mock_get_http_request, mock_ctx, mocker):
+        mock_logger = mocker.patch('mcp_jenkins.core.lifespan.logger')
+        mock_ctx.request_context.lifespan_context.jenkins_lock_url = True
+        mock_get_http_request.return_value = mocker.Mock(
+            state=mocker.Mock(
+                jenkins_url='https://jenkins.fromrstate.com',
+                jenkins_username='state-username',
+                jenkins_password='state-password',
+            )
+        )
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once_with(
+            url='https://jenkins.example.com',
+            username='state-username',
+            password='state-password',
+            timeout=5,
+            verify_ssl=True,
+        )
+        mock_logger.warning.assert_called_once()
+
+    def test_lock_url_without_header_url(self, mock_jenkins, mock_get_http_request, mock_ctx, mocker):
+        mock_logger = mocker.patch('mcp_jenkins.core.lifespan.logger')
+        mock_ctx.request_context.lifespan_context.jenkins_lock_url = True
+        mock_get_http_request.return_value = mocker.Mock(
+            state=mocker.Mock(jenkins_url=None, jenkins_username=None, jenkins_password=None)
+        )
+
+        jenkins(mock_ctx)
+
+        mock_jenkins.assert_called_once_with(
+            url='https://jenkins.example.com',
+            username='username',
+            password='password',
+            timeout=5,
+            verify_ssl=True,
+        )
+        mock_logger.warning.assert_not_called()
 
     def test_missing_auth(self, mock_get_http_request, mock_ctx):
         mock_get_http_request.side_effect = RuntimeError('Not available http request')

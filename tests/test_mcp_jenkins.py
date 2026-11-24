@@ -11,6 +11,7 @@ JENKINS_ENV_VARS = (
     'jenkins_timeout',
     'jenkins_verify_ssl',
     'jenkins_session_singleton',
+    'jenkins_lock_url',
 )
 
 
@@ -152,3 +153,63 @@ def test_main_env_file_autodiscovery(mocker, monkeypatch, tmp_path):
     assert os.environ['jenkins_url'] == 'https://auto.example.com'
     assert os.environ['jenkins_username'] == 'auto-username'
     assert os.environ['jenkins_password'] == 'auto-password'
+
+
+def test_main_lock_jenkins_url(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv('JENKINS_URL', raising=False)
+
+    result = CliRunner().invoke(
+        main, ['--transport', 'stdio', '--jenkins-url', 'https://cli.example.com', '--lock-jenkins-url']
+    )
+
+    assert result.exit_code == 0
+    assert os.environ['jenkins_lock_url'] == 'true'
+
+
+def test_main_lock_jenkins_url_env_var(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv('JENKINS_URL', 'https://env.example.com')
+    monkeypatch.setenv('JENKINS_LOCK_URL', 'true')
+
+    result = CliRunner().invoke(main, ['--transport', 'stdio'])
+
+    assert result.exit_code == 0
+    assert os.environ['jenkins_lock_url'] == 'true'
+
+
+def test_main_lock_jenkins_url_is_off_by_default(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv('JENKINS_LOCK_URL', raising=False)
+
+    result = CliRunner().invoke(main, ['--transport', 'stdio'])
+
+    assert result.exit_code == 0
+    assert os.environ['jenkins_lock_url'] == 'false'
+
+
+def test_main_lock_jenkins_url_requires_url(mocker, monkeypatch):
+    mocker.patch('mcp_jenkins.asyncio')
+    mock_mcp = mocker.patch('mcp_jenkins.server.mcp')
+
+    for key in JENKINS_ENV_VARS:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv('JENKINS_URL', raising=False)
+
+    result = CliRunner().invoke(main, ['--transport', 'stdio', '--lock-jenkins-url'])
+
+    assert result.exit_code != 0
+    assert '--lock-jenkins-url requires --jenkins-url' in result.output
+    mock_mcp.run_async.assert_not_called()
