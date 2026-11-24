@@ -20,6 +20,7 @@ class LifespanContext(BaseModel):
     jenkins_verify_ssl: bool = True
 
     jenkins_session_singleton: bool = True
+    jenkins_lock_url: bool = False
 
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
     jenkins_timeout = int(os.getenv('jenkins_timeout', '5'))
     jenkins_verify_ssl = os.getenv('jenkins_verify_ssl', 'true').lower() == 'true'
     jenkins_session_singleton = os.getenv('jenkins_session_singleton', 'true').lower() == 'true'
+    jenkins_lock_url = os.getenv('jenkins_lock_url', 'false').lower() == 'true'
 
     yield LifespanContext(
         jenkins_url=jenkins_url,
@@ -39,6 +41,7 @@ async def lifespan(app: FastMCP[LifespanContext]) -> AsyncIterator['LifespanCont
         jenkins_timeout=jenkins_timeout,
         jenkins_verify_ssl=jenkins_verify_ssl,
         jenkins_session_singleton=jenkins_session_singleton,
+        jenkins_lock_url=jenkins_lock_url,
     )
 
 
@@ -56,7 +59,11 @@ def jenkins(ctx: Context) -> Jenkins:
     try:
         requests = get_http_request()
 
-        jenkins_url = getattr(requests.state, 'jenkins_url', None) or jenkins_url
+        header_url = getattr(requests.state, 'jenkins_url', None)
+        if not ctx.request_context.lifespan_context.jenkins_lock_url:
+            jenkins_url = header_url or jenkins_url
+        elif header_url and header_url != jenkins_url:
+            logger.warning(f'Ignoring x-jenkins-url header {header_url}: the Jenkins URL is locked to {jenkins_url}')
         jenkins_username = getattr(requests.state, 'jenkins_username', None) or jenkins_username
         jenkins_password = getattr(requests.state, 'jenkins_password', None) or jenkins_password
 

@@ -47,6 +47,13 @@ def _load_env_file(ctx: click.Context, param: click.Parameter, value: str | None
     help='Whether to verify SSL certificates, default is True',
 )
 @click.option(
+    '--lock-jenkins-url',
+    default=False,
+    is_flag=True,
+    envvar='JENKINS_LOCK_URL',
+    help='Always use --jenkins-url and ignore the x-jenkins-url header, default is False',
+)
+@click.option(
     '--read-only',
     default=False,
     is_flag=True,
@@ -84,6 +91,7 @@ def main(
     jenkins_password: str,
     jenkins_timeout: int,
     jenkins_verify_ssl: bool,  # noqa: FBT001
+    lock_jenkins_url: bool,  # noqa: FBT001
     read_only: bool,  # noqa: FBT001
     tool_regex: str,
     jenkins_session_singleton: bool,  # noqa: FBT001
@@ -91,6 +99,10 @@ def main(
     host: str,
     port: int,
 ) -> None:
+    if lock_jenkins_url and not jenkins_url:
+        msg = '--lock-jenkins-url requires --jenkins-url'
+        raise click.UsageError(msg)
+
     if jenkins_url:
         os.environ['jenkins_url'] = jenkins_url
     if jenkins_username:
@@ -101,6 +113,7 @@ def main(
     os.environ['jenkins_timeout'] = str(jenkins_timeout)
     os.environ['jenkins_verify_ssl'] = str(jenkins_verify_ssl).lower()
     os.environ['jenkins_session_singleton'] = str(jenkins_session_singleton).lower()
+    os.environ['jenkins_lock_url'] = str(lock_jenkins_url).lower()
 
     from mcp_jenkins.server import mcp
 

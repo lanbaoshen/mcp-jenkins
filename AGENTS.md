@@ -29,7 +29,7 @@ src/mcp_jenkins/
 └── server/              # MCP tool definitions (@mcp.tool decorators)
 ```
 
-**Credential resolution** (in `core/lifespan.py`): session singleton cache → HTTP request headers (`x-jenkins-url`, `x-jenkins-username`, `x-jenkins-password`) → env vars set from CLI args. Always call `jenkins(ctx)` inside tool functions to obtain the client; never instantiate `Jenkins` directly.
+**Credential resolution** (in `core/lifespan.py`): session singleton cache → HTTP request headers (`x-jenkins-url`, `x-jenkins-username`, `x-jenkins-password`) → env vars set from CLI args. With `--lock-jenkins-url`, the `x-jenkins-url` header is ignored and the CLI URL is always used. Always call `jenkins(ctx)` inside tool functions to obtain the client; never instantiate `Jenkins` directly.
 
 **Read-only mode:** Tools that mutate Jenkins state must carry `tags=['write']`. Tools tagged `'read'` remain available when `--read-only` is passed. Every new tool must have exactly one of these two tags.
 
