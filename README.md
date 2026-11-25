@@ -157,6 +157,8 @@ Note: this is a liveness check only — it does not verify connectivity to the u
 | `get_item`                 | Get a specific item by name.                        |
 | `get_item_config`          | Get the configuration of a specific item.           |
 | `get_item_parameters`      | Get the parameters of a specific item.              |
+| `create_item`              | Create an item from a config XML.                   |
+| `copy_item`                | Create an item as a copy of an existing item.       |
 | `get_all_items`            | Get all items in Jenkins.                           |
 | `query_items`              | Query items based on pattern.                       |
 | `build_item`               | Build a item.                                       |

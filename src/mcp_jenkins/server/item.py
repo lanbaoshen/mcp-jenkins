@@ -54,6 +54,28 @@ async def set_item_config(ctx: Context, fullname: str, config_xml: str) -> None:
     jenkins(ctx).set_item_config(fullname=fullname, config_xml=config_xml)
 
 
+@mcp.tool(tags=['write'])
+async def create_item(ctx: Context, fullname: str, config_xml: str) -> None:
+    """Create a new item in Jenkins from a config XML
+
+    Args:
+        fullname: The fullname of the new item. The parent folder must already exist.
+        config_xml: The config XML of the new item, e.g. one returned by get_item_config.
+    """
+    jenkins(ctx).create_item(fullname=fullname, config_xml=config_xml)
+
+
+@mcp.tool(tags=['write'])
+async def copy_item(ctx: Context, from_fullname: str, fullname: str) -> None:
+    """Create a new item in Jenkins as a copy of an existing item
+
+    Args:
+        from_fullname: The fullname of the existing item to copy
+        fullname: The fullname of the new item. The parent folder must already exist.
+    """
+    jenkins(ctx).copy_item(from_fullname=from_fullname, fullname=fullname)
+
+
 @mcp.tool(tags=['read'])
 async def query_items(
     ctx: Context,

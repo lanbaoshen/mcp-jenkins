@@ -20,6 +20,7 @@ ITEM = RestEndpoint('{job_path}/api/json?depth={depth}')
 ITEM_LAST_BUILD_NUMBER = RestEndpoint('{job_path}/api/json?tree=lastBuild[number],buildable')
 ITEMS = RestEndpoint('{folder}/api/json?tree={query}')
 ITEM_CONFIG = RestEndpoint('{job_path}/config.xml')
+ITEM_CREATE = RestEndpoint('{folder_path}/createItem')
 ITEM_BUILD = RestEndpoint('{job_path}/{build_type}')
 
 QUEUE = RestEndpoint('queue/api/json?depth={depth}')
