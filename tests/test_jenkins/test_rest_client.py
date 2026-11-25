@@ -1299,6 +1299,62 @@ class TestItem:
             timeout=75,
         )
 
+    def test_create_item(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(status_code=200)
+
+        assert jenkins.create_item(fullname='folder1/folder2/new-job', config_xml='<project/>') is None
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/folder1/job/folder2/createItem',
+            headers={'Content-Type': 'application/xml', 'Jenkins-Crumb': 'crumb-value'},
+            params={'name': 'new-job'},
+            data='<project/>',
+            timeout=75,
+        )
+
+    def test_create_item_top_level(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(status_code=200)
+
+        jenkins.create_item(fullname='new-job', config_xml='<project/>')
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/createItem',
+            headers={'Content-Type': 'application/xml', 'Jenkins-Crumb': 'crumb-value'},
+            params={'name': 'new-job'},
+            data='<project/>',
+            timeout=75,
+        )
+
+    def test_copy_item(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(status_code=200)
+
+        assert jenkins.copy_item(from_fullname='folder1/old-job', fullname='folder2/folder3/new-job') is None
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/job/folder2/job/folder3/createItem',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params={'name': 'new-job', 'mode': 'copy', 'from': '/folder1/old-job'},
+            data=None,
+            timeout=75,
+        )
+
+    def test_copy_item_top_level(self, jenkins, mock_session, mocker):
+        mock_session.request.return_value = mocker.Mock(status_code=200)
+
+        jenkins.copy_item(from_fullname='old-job', fullname='new-job')
+
+        mock_session.request.assert_called_once_with(
+            method='POST',
+            url='https://example.com/createItem',
+            headers={'Jenkins-Crumb': 'crumb-value'},
+            params={'name': 'new-job', 'mode': 'copy', 'from': '/old-job'},
+            data=None,
+            timeout=75,
+        )
+
     def test_query_items(self, jenkins, mock_session, mocker):
         mock_session.request.return_value = mocker.Mock(
             json=lambda: {

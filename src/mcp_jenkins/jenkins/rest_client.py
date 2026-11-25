@@ -744,6 +744,55 @@ class Jenkins:
             data=config_xml,
         )
 
+    def _create_item(
+        self,
+        *,
+        fullname: str,
+        params: dict,
+        data: str | None = None,
+        headers: dict | None = None,
+    ) -> None:
+        """Send a createItem request for an item, addressed by the parent folder and the leaf name.
+
+        Args:
+            fullname: The full name of the new item (e.g., "folder1/folder2/item").
+            params: Query parameters in addition to the item name.
+            data: Optional request body.
+            headers: Optional request headers.
+        """
+        parent, _, name = fullname.rpartition('/')
+        folder_path = self._job_path(parent) if parent else ''
+        self.request(
+            'POST',
+            rest_endpoint.ITEM_CREATE(folder_path=folder_path),
+            headers=headers,
+            params={'name': name, **params},
+            data=data,
+        )
+
+    def create_item(self, *, fullname: str, config_xml: str) -> None:
+        """Create an item from a config XML by its fullname.
+
+        Args:
+            fullname: The full name of the new item (e.g., "folder1/folder2/item"). The parent folder must exist.
+            config_xml: The item configuration as an XML string.
+        """
+        self._create_item(
+            fullname=fullname,
+            params={},
+            data=config_xml,
+            headers={'Content-Type': 'application/xml'},
+        )
+
+    def copy_item(self, *, from_fullname: str, fullname: str) -> None:
+        """Create an item as a copy of an existing item.
+
+        Args:
+            from_fullname: The full name of the item to copy (e.g., "folder1/folder2/item").
+            fullname: The full name of the new item (e.g., "folder3/item-copy"). The parent folder must exist.
+        """
+        self._create_item(fullname=fullname, params={'mode': 'copy', 'from': f'/{from_fullname}'})
+
     def query_items(
         self,
         *,
